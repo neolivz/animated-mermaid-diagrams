@@ -3,98 +3,353 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>animated-mermaid-diagrams demo</title>
+  <title>animated-mermaid-diagrams — figures</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet" />
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 860px; margin: 0 auto; padding: 2rem 1rem 60vh; }
-    section { margin-bottom: 70vh; }
-    h2 { color: #334155; }
-    .controls button { margin-right: .5rem; }
+    :root {
+      --ink: #0b1120;
+      --panel: #0f172a;
+      --line: #232c44;
+      --vellum: #e8edf7;
+      --annot: #8fa0c0;
+      --indigo: #818cf8;
+      --signal: #34d399;
+      --display: 'Bricolage Grotesque', system-ui, sans-serif;
+      --body: 'Atkinson Hyperlegible', system-ui, sans-serif;
+      --mono: 'IBM Plex Mono', ui-monospace, monospace;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--vellum);
+      font-family: var(--body);
+      font-size: 17px;
+      line-height: 1.55;
+      background-color: var(--ink);
+      background-image:
+        linear-gradient(rgba(129, 140, 248, 0.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(129, 140, 248, 0.045) 1px, transparent 1px);
+      background-size: 28px 28px;
+      background-attachment: fixed;
+    }
+    a { color: var(--indigo); }
+
+    .sheet {
+      max-width: 1220px;
+      margin: 0 auto;
+      padding: 0 24px;
+      display: grid;
+      grid-template-columns: 200px minmax(0, 880px);
+      gap: 56px;
+      justify-content: center;
+    }
+    main { min-width: 0; }
+
+    /* ---- index rail ---- */
+    .rail {
+      position: sticky;
+      top: 32px;
+      align-self: start;
+      padding-top: 96px;
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+    .rail-title {
+      color: var(--annot);
+      letter-spacing: 0.14em;
+      margin-bottom: 14px;
+    }
+    .rail a {
+      display: flex;
+      gap: 10px;
+      padding: 5px 0;
+      color: var(--annot);
+      text-decoration: none;
+      border-left: 1px solid var(--line);
+      padding-left: 14px;
+    }
+    .rail a:hover, .rail a:focus-visible { color: var(--vellum); border-left-color: var(--indigo); }
+    .rail a .n { color: var(--indigo); }
+
+    /* ---- header ---- */
+    header { padding: 96px 0 24px; }
+    .eyebrow {
+      font-family: var(--mono);
+      font-size: 12px;
+      letter-spacing: 0.14em;
+      color: var(--annot);
+      text-transform: uppercase;
+    }
+    .eyebrow b { color: var(--indigo); font-weight: 600; }
+    h1 {
+      font-family: var(--display);
+      font-weight: 800;
+      font-size: clamp(2.6rem, 6vw, 4.2rem);
+      line-height: 1.02;
+      letter-spacing: -0.02em;
+      margin: 14px 0 18px;
+    }
+    .lede { max-width: 56ch; color: var(--annot); margin: 0 0 22px; }
+    .lede strong { color: var(--vellum); font-weight: 700; }
+    .install {
+      display: inline-block;
+      font-family: var(--mono);
+      font-size: 13.5px;
+      color: var(--vellum);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 9px 14px;
+    }
+    .install::before { content: '$ '; color: var(--signal); }
+
+    /* ---- figure plates ---- */
+    section { margin: 0 0 42vh; }
+    header + section, section.hero { margin-top: 56px; }
+    .plate-head {
+      display: flex;
+      align-items: baseline;
+      gap: 14px;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 10px;
+      margin-bottom: 6px;
+    }
+    .fig {
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      color: var(--indigo);
+      white-space: nowrap;
+    }
+    .plate-head h2 {
+      font-family: var(--display);
+      font-weight: 600;
+      font-size: 1.35rem;
+      letter-spacing: -0.01em;
+      margin: 0;
+      flex: 1;
+    }
+    .how {
+      font-size: 15px;
+      color: var(--annot);
+      margin: 0 0 16px;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 18px;
+    }
+    .panel svg { display: block; margin: 0 auto; }
+    .panel > pre.animated-mermaid-diagrams {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--annot);
+      margin: 0;
+    }
+
+    /* ---- hero ---- */
+    .hero .panel { position: relative; }
+    .counter {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--mono);
+      font-size: 12px;
+      letter-spacing: 0.1em;
+      color: var(--annot);
+    }
+    .counter .dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--signal);
+    }
+    .counter.live .dot { animation: pulse 1s ease-in-out infinite; }
+    .counter.live { color: var(--signal); }
+    @keyframes pulse { 50% { opacity: 0.25; } }
+    @media (prefers-reduced-motion: reduce) { .counter.live .dot { animation: none; } }
+
+    /* ---- controls ---- */
+    .controls { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; }
+    button {
+      font-family: var(--mono);
+      font-size: 12.5px;
+      letter-spacing: 0.06em;
+      color: var(--vellum);
+      background: transparent;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      padding: 7px 14px;
+      cursor: pointer;
+    }
+    button:hover { border-color: var(--indigo); color: var(--indigo); }
+    :focus-visible { outline: 2px solid var(--indigo); outline-offset: 2px; }
+
+    /* ---- footer title block ---- */
+    footer {
+      margin: 12vh 0 64px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      background: var(--panel);
+    }
+    footer div { padding: 12px 16px; border-right: 1px solid var(--line); }
+    footer div:last-child { border-right: 0; }
+    footer dt {
+      font-family: var(--mono);
+      font-size: 10.5px;
+      letter-spacing: 0.14em;
+      color: var(--annot);
+      text-transform: uppercase;
+      margin: 0 0 3px;
+    }
+    footer dd { margin: 0; font-size: 14px; }
+
+    @media (max-width: 1099px) {
+      .sheet { grid-template-columns: minmax(0, 880px); }
+      .rail { display: none; }
+      header { padding-top: 56px; }
+    }
   </style>
 </head>
 <body>
-  <h1>animated-mermaid-diagrams</h1>
-  <p>Scroll down — each diagram animates when it enters the viewport, and replays on re-entry.</p>
+  <div class="sheet">
+    <nav class="rail" aria-label="Index of figures">
+      <div class="rail-title">INDEX OF FIGURES</div>
+      <a href="#fig-00"><span class="n">00</span> Live sequence</a>
+      <a href="#fig-01"><span class="n">01</span> Frames &amp; activations</a>
+      <a href="#fig-02"><span class="n">02</span> Flowchart</a>
+      <a href="#fig-03"><span class="n">03</span> Manual control</a>
+      <a href="#fig-04"><span class="n">04</span> Click to explore</a>
+      <a href="#fig-05"><span class="n">05</span> Click to step</a>
+      <a href="#fig-06"><span class="n">06</span> Composite state</a>
+      <a href="#fig-07"><span class="n">07</span> Auto-init</a>
+    </nav>
 
-  <section>
-    <h2>Sequence (mermaid text)</h2>
-    <div id="seq"></div>
-  </section>
+    <main>
+      <header>
+        <div class="eyebrow"><b>animated-mermaid-diagrams</b> · rev 0.1.0</div>
+        <h1>Diagrams that draw themselves.</h1>
+        <p class="lede">Step-by-step animation for Mermaid <strong>sequence</strong>, <strong>flowchart</strong>, and <strong>state</strong> diagrams. The same layout engine as Mermaid, one script tag, ~30&nbsp;KB.</p>
+        <span class="install">npm install animated-mermaid-diagrams</span>
+      </header>
 
-  <section>
-    <h2>Multi-tier sequence (6 participants)</h2>
-    <div id="seq-tiers"></div>
-  </section>
+      <section class="hero" id="fig-00">
+        <div class="plate-head">
+          <span class="fig">FIG. 00 — SEQUENCE, LIVE</span>
+          <h2>An order placed across six services</h2>
+        </div>
+        <p class="how">Every arrow is one step — watch the request travel, fail, retry, and confirm. Scroll away and back and it replays.</p>
+        <div class="panel">
+          <div class="counter" id="hero-counter"><span class="dot"></span><span id="hero-step">READY</span></div>
+          <div id="seq-tiers"></div>
+        </div>
+      </section>
 
-  <section>
-    <h2>Flowchart (mermaid text)</h2>
-    <div id="flow"></div>
-  </section>
+      <section id="fig-01">
+        <div class="plate-head">
+          <span class="fig">FIG. 01 — SEQUENCE</span>
+          <h2>Frames and activations</h2>
+        </div>
+        <p class="how"><code>alt</code>/<code>else</code> frames, notes, and activation bars — parsed from plain Mermaid text.</p>
+        <div class="panel"><div id="seq"></div></div>
+      </section>
 
-  <section>
-    <h2>State diagram (JS config, manual controls)</h2>
-    <div class="controls">
-      <button id="play">play</button>
-      <button id="pause">pause</button>
-      <button id="resume">resume</button>
-      <button id="step2">goToStep(2)</button>
-      <button id="reset">reset</button>
-    </div>
-    <div id="state"></div>
-  </section>
+      <section id="fig-02">
+        <div class="plate-head">
+          <span class="fig">FIG. 02 — FLOWCHART</span>
+          <h2>Decisions, tier by tier</h2>
+        </div>
+        <p class="how">Nodes reveal a tier at a time; each edge draws itself to connect them.</p>
+        <div class="panel"><div id="flow"></div></div>
+      </section>
 
-  <section>
-    <h2>State with composite</h2>
-    <div id="state-composite"></div>
-  </section>
+      <section id="fig-03">
+        <div class="plate-head">
+          <span class="fig">FIG. 03 — STATE MACHINE</span>
+          <h2>Under manual control</h2>
+        </div>
+        <p class="how">Drive the controller yourself: pause mid-stroke, jump to a step, reset.</p>
+        <div class="controls">
+          <button id="play">play</button>
+          <button id="pause">pause</button>
+          <button id="resume">resume</button>
+          <button id="step2">go to step 2</button>
+          <button id="reset">reset</button>
+        </div>
+        <div class="panel"><div id="state"></div></div>
+      </section>
 
-  <section>
-    <h2>Click to explore (flowchart)</h2>
-    <p>Click a revealed node to expand its outgoing branches — nothing plays on a timer.</p>
-    <div id="flow-click"></div>
-  </section>
+      <section id="fig-04">
+        <div class="plate-head">
+          <span class="fig">FIG. 04 — FLOWCHART, INTERACTIVE</span>
+          <h2>Click to explore</h2>
+        </div>
+        <p class="how">Click a lit node (or focus it and press Enter) to open its branches. Nothing runs on a timer.</p>
+        <div class="panel"><div id="flow-click"></div></div>
+      </section>
 
-  <section>
-    <h2>Click to step (sequence)</h2>
-    <p>Click anywhere on the diagram to advance one step at a time.</p>
-    <div id="seq-click"></div>
-  </section>
+      <section id="fig-05">
+        <div class="plate-head">
+          <span class="fig">FIG. 05 — SEQUENCE, INTERACTIVE</span>
+          <h2>Click to step</h2>
+        </div>
+        <p class="how">Click the diagram to advance one message at a time.</p>
+        <div class="panel"><div id="seq-click"></div></div>
+      </section>
 
-  <section>
-    <h2>Auto-init from &lt;pre&gt;</h2>
-    <pre class="animated-mermaid-diagrams">
+      <section id="fig-06">
+        <div class="plate-head">
+          <span class="fig">FIG. 06 — STATE MACHINE</span>
+          <h2>Composite states</h2>
+        </div>
+        <p class="how"><code>state Working { … }</code> renders as a container; transitions cross its border.</p>
+        <div class="panel"><div id="state-composite"></div></div>
+      </section>
+
+      <section id="fig-07">
+        <div class="plate-head">
+          <span class="fig">FIG. 07 — AUTO-INIT</span>
+          <h2>From markup alone</h2>
+        </div>
+        <p class="how">A <code>&lt;pre class="animated-mermaid-diagrams"&gt;</code> block becomes a live diagram when <code>init()</code> runs.</p>
+        <div class="panel">
+          <pre class="animated-mermaid-diagrams">
 sequenceDiagram
   actor User
   participant App
   User->>App: Hello
   App-->>User: Hi
-    </pre>
-  </section>
+          </pre>
+        </div>
+      </section>
+
+      <footer>
+        <div><dt>Project</dt><dd>animated-mermaid-diagrams</dd></div>
+        <div><dt>Revision</dt><dd>0.1.0</dd></div>
+        <div><dt>Layout engine</dt><dd>dagre — same as Mermaid</dd></div>
+        <div><dt>License</dt><dd>MIT</dd></div>
+        <div><dt>Sheet</dt><dd>1 of 1</dd></div>
+      </footer>
+    </main>
+  </div>
 
   <script src="../dist/animated-mermaid-diagrams.umd.js"></script>
   <script>
     const { render, stateDiagram, init } = AnimatedMermaidDiagrams
 
-    render(document.getElementById('seq'), `
-      sequenceDiagram
-        actor User
-        participant App
-        participant Backend
-
-        User->>App: Click delete on item
-        activate Backend
-        App->>Backend: GET resource usage
-        Backend-->>App: Returns list with linked record
-        deactivate Backend
-        alt item has links
-          App-->>User: Show dialog with linked record
-          User->>App: Click the record link
-          Note over App: Router intercepts navigation
-          App-->>User: Record editor loads
-        else no links
-          App-->>User: Delete immediately
-        end
-    `)
-
+    // FIG. 00 — hero, with a live step counter driven by the real callbacks
+    const HERO_TOTAL = 13
+    const heroStep = document.getElementById('hero-step')
+    const heroCounter = document.getElementById('hero-counter')
     render(document.getElementById('seq-tiers'), `
       sequenceDiagram
         actor Shopper
@@ -117,8 +372,40 @@ sequenceDiagram
         Orders-->>GW: 201 Created
         GW-->>Web: 201 Created
         Web-->>Shopper: Order confirmed
+    `, {
+      onStepStart: (i) => {
+        heroCounter.classList.add('live')
+        heroStep.textContent = 'STEP ' + String(i + 1).padStart(2, '0') + ' / ' + HERO_TOTAL
+      },
+      onComplete: () => {
+        heroCounter.classList.remove('live')
+        heroStep.textContent = 'COMPLETE — SCROLL AWAY TO REPLAY'
+      },
+    })
+
+    // FIG. 01
+    render(document.getElementById('seq'), `
+      sequenceDiagram
+        actor User
+        participant App
+        participant Backend
+
+        User->>App: Click delete on item
+        activate Backend
+        App->>Backend: GET resource usage
+        Backend-->>App: Returns list with linked record
+        deactivate Backend
+        alt item has links
+          App-->>User: Show dialog with linked record
+          User->>App: Click the record link
+          Note over App: Router intercepts navigation
+          App-->>User: Record editor loads
+        else no links
+          App-->>User: Delete immediately
+        end
     `)
 
+    // FIG. 02
     render(document.getElementById('flow'), `
       flowchart TD
         A[Navigate to /items/id] --> B{Editable?}
@@ -126,38 +413,7 @@ sequenceDiagram
         B -->|no| D[Show read-only view]
     `)
 
-    render(document.getElementById('state-composite'), `
-      stateDiagram-v2
-        [*] --> Working
-        state Working {
-          [*] --> Loading
-          Loading --> Saving
-        }
-        Working --> Idle : done
-        Idle --> Working : start
-    `)
-
-    render(document.getElementById('flow-click'), `
-      flowchart TD
-        S([Start]) --> B[Validate]
-        subgraph Validation
-          B --> T{OK?}
-        end
-        T -->|no| N[Reject]
-        T -->|yes| P[Process]
-        P --> C((Done))
-        N -.-> B
-    `, { advance: 'click', trigger: 'immediate' })
-
-    render(document.getElementById('seq-click'), `
-      sequenceDiagram
-        actor Client
-        participant Server
-        Client->>Server: Request
-        Server-->>Client: Response
-        Client->>Server: Ack
-    `, { advance: 'click', trigger: 'immediate' })
-
+    // FIG. 03
     const ctrl = stateDiagram(document.getElementById('state'), {
       states: [
         { id: 'idle', text: 'Idle' },
@@ -181,6 +437,42 @@ sequenceDiagram
     document.getElementById('step2').onclick = () => ctrl.goToStep(2)
     document.getElementById('reset').onclick = () => ctrl.reset()
 
+    // FIG. 04
+    render(document.getElementById('flow-click'), `
+      flowchart TD
+        S([Start]) --> B[Validate]
+        subgraph Validation
+          B --> T{OK?}
+        end
+        T -->|no| N[Reject]
+        T -->|yes| P[Process]
+        P --> C((Done))
+        N -.-> B
+    `, { advance: 'click', trigger: 'immediate' })
+
+    // FIG. 05
+    render(document.getElementById('seq-click'), `
+      sequenceDiagram
+        actor Client
+        participant Server
+        Client->>Server: Request
+        Server-->>Client: Response
+        Client->>Server: Ack
+    `, { advance: 'click', trigger: 'immediate' })
+
+    // FIG. 06
+    render(document.getElementById('state-composite'), `
+      stateDiagram-v2
+        [*] --> Working
+        state Working {
+          [*] --> Loading
+          Loading --> Saving
+        }
+        Working --> Idle : done
+        Idle --> Working : start
+    `)
+
+    // FIG. 07
     init()
   </script>
 </body>
