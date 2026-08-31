@@ -1,0 +1,43 @@
+{
+  "name": "animated-mermaid-diagrams",
+  "version": "0.1.0",
+  "description": "Drop-in animated rendering for Mermaid diagrams. Zero dependencies.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "unpkg": "./dist/animated-mermaid-diagrams.umd.js",
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "mermaid",
+    "diagram",
+    "animation",
+    "svg",
+    "sequence-diagram",
+    "flowchart",
+    "state-diagram"
+  ],
+  "devDependencies": {
+    "jsdom": "^30.0.1",
+    "tsup": "^8.5.1",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.11"
+  }
+}
