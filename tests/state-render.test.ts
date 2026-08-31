@@ -139,6 +139,27 @@ describe('buildStateSvg', () => {
     const last = root.lastElementChild!
     expect([...last.querySelectorAll('text')].map((t) => t.textContent)).toContain('fetch()')
   })
+
+  it('parks long back-edge labels clear of intermediate state boxes', () => {
+    const { svg: zsvg } = buildStateSvg(CONFIG, opts)
+    const findRectFor = (label: string): SVGRectElement => {
+      const t = [...zsvg.querySelectorAll('text')].find((n) => n.textContent === label)!
+      return t.previousElementSibling as SVGRectElement
+    }
+    const pill = findRectFor('reset()')
+    const box = findRectFor('Loading')
+    const a = { x: +pill.getAttribute('x')!, y: +pill.getAttribute('y')!, w: +pill.getAttribute('width')!, h: +pill.getAttribute('height')! }
+    const b = { x: +box.getAttribute('x')!, y: +box.getAttribute('y')!, w: +box.getAttribute('width')!, h: +box.getAttribute('height')! }
+    const overlap = a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
+    expect(overlap).toBe(false)
+  })
+
+  it('staggers labels of same-source fan-outs', () => {
+    const { svg: zsvg } = buildStateSvg(CONFIG, opts)
+    const yOf = (label: string): string | null =>
+      [...zsvg.querySelectorAll('text')].find((n) => n.textContent === label)!.getAttribute('y')
+    expect(yOf('success')).not.toBe(yOf('failure'))
+  })
 })
 
 describe('stateDiagram()', () => {

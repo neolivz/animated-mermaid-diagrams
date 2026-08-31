@@ -149,6 +149,14 @@ export function buildStateSvg(
     )
     const bow = hasReverse ? (tr.from < tr.to ? 28 : -28) : 0
     const labelDy = hasReverse ? (tr.from < tr.to ? -8 : 8) : 0
+    // Long edges pass an intermediate row: park the label near the source end
+    // (t=0.25) so it lands in a row gap instead of on a box.
+    const layerSpan = Math.abs(e.layer - s.layer)
+    const t01 = layerSpan > 1 ? 0.25 : 0.5
+    // Stagger labels of same-source fan-outs so adjacent pills don't collide.
+    const fan = config.transitions.filter((o) => o.from === tr.from && o.from !== o.to)
+    const fanIdx = fan.indexOf(tr)
+    const fanDy = fanIdx <= 0 ? 0 : fanIdx % 2 === 1 ? 14 : -14
     const path = el('path', {
       d: `M ${x1} ${y1} C ${x1 + bow} ${y1 + mid}, ${x2 + bow} ${y2 - mid}, ${x2} ${y2}`,
       fill: 'none', stroke: t.line, 'stroke-width': 2,
@@ -159,8 +167,8 @@ export function buildStateSvg(
     root.appendChild(head)
     anim.push({ el: head, kind: 'fade' })
     if (tr.label) {
-      const mx = (x1 + x2) / 2 + bow
-      const my = (y1 + y2) / 2 + labelDy
+      const mx = x1 + (x2 - x1) * t01 + bow
+      const my = y1 + (y2 - y1) * t01 + labelDy + fanDy
       const lw = estimateTextWidth(tr.label, 12) + 12
       trackX(mx - lw / 2, mx + lw / 2)
       const g = el('g', {}, [
