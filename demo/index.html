@@ -380,7 +380,7 @@
           <span class="fig">FIG. 07 — AUTO-INIT</span>
           <h2>From markup alone</h2>
         </div>
-        <p class="how">Mark a <code>&lt;pre&gt;</code> with <code>class="animated-mermaid-diagrams"</code> (Mermaid-style), or any element at all with <code>data-animated-mermaid</code> — and <code>init()</code> renders it in place.</p>
+        <p class="how">Mark a <code>&lt;pre&gt;</code> with <code>class="animated-mermaid-diagrams"</code>, or any element with <code>data-animated-mermaid</code> — options ride along as <code>data-amd-*</code> attributes. The second diagram below is click-to-explore, configured purely from markup.</p>
         <div class="panel">
           <pre class="animated-mermaid-diagrams">
 sequenceDiagram
@@ -389,7 +389,7 @@ sequenceDiagram
   User->>App: Hello
   App-->>User: Hi
           </pre>
-          <div data-animated-mermaid>
+          <div data-animated-mermaid="click" data-amd-trigger="immediate">
 flowchart LR
   A[Write markup] --> B[Call init]
   B --> C[Diagram]
@@ -403,7 +403,8 @@ sequenceDiagram
   App--&gt;&gt;User: Hi
 &lt;/pre&gt;
 
-&lt;div data-animated-mermaid&gt;             &lt;!-- works on any element --&gt;
+&lt;!-- works on any element; options are declarative --&gt;
+&lt;div data-animated-mermaid="click" data-amd-trigger="immediate"&gt;
 flowchart LR
   A[Write markup] --&gt; B[Call init]
   B --&gt; C[Diagram]
