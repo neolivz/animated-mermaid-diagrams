@@ -1,8 +1,9 @@
 import type { SequenceActor, SequenceConfig, SequenceStep } from '../types'
 
 const SKIP = /^(alt\b|else\b|opt\b|loop\b|par\b|and\b|end$|activate\b|deactivate\b|autonumber\b)/i
-// Order matters: longest arrows first so `-->>` wins over `->>`, `--x` over `-x`.
-const MESSAGE = /^(\S+?)\s*(-->>|->>|--x|-x|-->|->)\s*(\S+?)\s*:\s*(.+)$/
+// Ids are word characters only: since every arrow starts with '-', a \w+ id can
+// never absorb part of an arrow token, so ambiguous lines fail safe (ignored).
+const MESSAGE = /^(\w+)\s*(-->>|->>|--x|-x|-->|->)\s*(\w+)\s*:\s*(.+)$/
 const DECL = /^(actor|participant)\s+(\S+?)(?:\s+as\s+(.+))?$/
 const NOTE = /^[Nn]ote\s+(?:over|left of|right of)\s+([^:]+):\s*(.+)$/
 
@@ -22,7 +23,16 @@ export function parseSequence(text: string): SequenceConfig {
   for (const line of lines.slice(1)) {
     const decl = line.match(DECL)
     if (decl) {
-      actors.push({ id: decl[2], label: decl[3] ?? decl[2], type: decl[1] as 'actor' | 'participant' })
+      const id = decl[2]
+      const label = decl[3] ?? id
+      const type = decl[1] as 'actor' | 'participant'
+      const existing = actors.find((a) => a.id === id)
+      if (existing) {
+        existing.label = label
+        existing.type = type
+      } else {
+        actors.push({ id, label, type })
+      }
       continue
     }
     const note = line.match(NOTE)

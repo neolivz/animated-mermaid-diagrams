@@ -68,4 +68,26 @@ describe('parseSequence', () => {
   it('throws on non-sequence input', () => {
     expect(() => parseSequence('flowchart TD\nA-->B')).toThrow()
   })
+
+  it('upserts a declaration that follows first use (no duplicate actors)', () => {
+    const c = parseSequence('sequenceDiagram\nA->>B: hi\nparticipant A as Alice')
+    expect(c.actors).toEqual([
+      { id: 'A', label: 'Alice', type: 'participant' },
+      { id: 'B', label: 'B', type: 'participant' },
+    ])
+  })
+
+  it('ignores lines where an arrow token abuts inside an id instead of misparsing', () => {
+    const c = parseSequence('sequenceDiagram\nA-x->>B: hi')
+    expect(c.steps).toEqual([])
+    expect(c.actors).toEqual([])
+  })
+
+  it('parses Note left of / right of like Note over', () => {
+    const c = parseSequence('sequenceDiagram\nNote left of A: to the left\nNote right of A: to the right')
+    expect(c.steps).toEqual([
+      { over: 'A', text: 'to the left', type: 'note' },
+      { over: 'A', text: 'to the right', type: 'note' },
+    ])
+  })
 })
