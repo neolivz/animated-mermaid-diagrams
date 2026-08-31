@@ -267,7 +267,8 @@
       <a href="#fig-04"><span class="n">04</span> Click to explore</a>
       <a href="#fig-05"><span class="n">05</span> Click to step</a>
       <a href="#fig-06"><span class="n">06</span> Composite state</a>
-      <a href="#fig-07"><span class="n">07</span> Auto-init</a>
+      <a href="#fig-07"><span class="n">07</span> Auto-init (class)</a>
+      <a href="#fig-08"><span class="n">08</span> Auto-init (data)</a>
     </nav>
 
     <main>
@@ -377,10 +378,10 @@
 
       <section id="fig-07">
         <div class="plate-head">
-          <span class="fig">FIG. 07 — AUTO-INIT</span>
-          <h2>From markup alone</h2>
+          <span class="fig">FIG. 07 — AUTO-INIT, CLASS MARKER</span>
+          <h2>The Mermaid convention</h2>
         </div>
-        <p class="how">Mark a <code>&lt;pre&gt;</code> with <code>class="animated-mermaid-diagrams"</code>, or any element with <code>data-animated-mermaid</code> — options ride along as <code>data-amd-*</code> attributes. The second diagram below is click-to-explore, configured purely from markup.</p>
+        <p class="how">A <code>&lt;pre class="animated-mermaid-diagrams"&gt;</code> block becomes a live diagram when <code>init()</code> runs — a drop-in for pages already using Mermaid's <code>&lt;pre class="mermaid"&gt;</code> pattern.</p>
         <div class="panel">
           <pre class="animated-mermaid-diagrams">
 sequenceDiagram
@@ -389,13 +390,8 @@ sequenceDiagram
   User->>App: Hello
   App-->>User: Hi
           </pre>
-          <div data-animated-mermaid="click" data-amd-trigger="immediate">
-flowchart LR
-  A[Write markup] --> B[Call init]
-  B --> C[Diagram]
-          </div>
         </div>
-        <details class="src"><summary>source</summary><pre><code>&lt;pre class="animated-mermaid-diagrams"&gt;   &lt;!-- Mermaid-style marker --&gt;
+        <details class="src"><summary>source</summary><pre><code>&lt;pre class="animated-mermaid-diagrams"&gt;
 sequenceDiagram
   actor User
   participant App
@@ -403,14 +399,33 @@ sequenceDiagram
   App--&gt;&gt;User: Hi
 &lt;/pre&gt;
 
-&lt;!-- works on any element; options are declarative --&gt;
-&lt;div data-animated-mermaid="click" data-amd-trigger="immediate"&gt;
+&lt;script&gt;AnimatedMermaidDiagrams.init()&lt;/script&gt;</code></pre></details>
+      </section>
+
+      <section id="fig-08">
+        <div class="plate-head">
+          <span class="fig">FIG. 08 — AUTO-INIT, DATA ATTRIBUTE</span>
+          <h2>Any element, options in markup</h2>
+        </div>
+        <p class="how"><code>data-animated-mermaid</code> marks any element, and <code>data-amd-*</code> attributes carry the options — this one is click-to-explore with no JavaScript configuration at all. Click a node.</p>
+        <div class="panel">
+          <div data-animated-mermaid="click" data-amd-trigger="immediate">
+flowchart LR
+  A[Write markup] --> B[Call init]
+  B --> C[Diagram]
+          </div>
+        </div>
+        <details class="src"><summary>source</summary><pre><code>&lt;div data-animated-mermaid="click" data-amd-trigger="immediate"&gt;
 flowchart LR
   A[Write markup] --&gt; B[Call init]
   B --&gt; C[Diagram]
 &lt;/div&gt;
 
-&lt;script&gt;AnimatedMermaidDiagrams.init()&lt;/script&gt;</code></pre></details>
+&lt;script&gt;AnimatedMermaidDiagrams.init()&lt;/script&gt;
+
+&lt;!-- the marker value is shorthand for data-amd-advance="click";
+     any option travels as data-amd-*: theme, trigger, advance,
+     keyboard, step-duration, step-delay, width, height, padding … --&gt;</code></pre></details>
       </section>
 
       <footer>
