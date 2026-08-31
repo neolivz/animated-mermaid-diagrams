@@ -191,6 +191,42 @@
     button:hover { border-color: var(--indigo); color: var(--indigo); }
     :focus-visible { outline: 2px solid var(--indigo); outline-offset: 2px; }
 
+    /* ---- source blocks ---- */
+    .src { margin-top: 10px; }
+    .src summary {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--annot);
+      cursor: pointer;
+      list-style: none;
+      width: fit-content;
+    }
+    .src summary::-webkit-details-marker { display: none; }
+    .src summary::before { content: '▸ '; color: var(--indigo); }
+    .src[open] summary::before { content: '▾ '; }
+    .src summary:hover { color: var(--vellum); }
+    .src pre {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 14px 16px;
+      overflow-x: auto;
+      font-family: var(--mono);
+      font-size: 12.5px;
+      line-height: 1.6;
+      color: var(--vellum);
+      margin: 10px 0 0;
+      tab-size: 2;
+    }
+    .src .src-note {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--annot);
+      margin-top: 6px;
+    }
+
     /* ---- footer title block ---- */
     footer {
       margin: 12vh 0 64px;
@@ -252,6 +288,7 @@
           <div class="counter" id="hero-counter"><span class="dot"></span><span id="hero-step">READY</span></div>
           <div id="seq-tiers"></div>
         </div>
+        <details class="src"><summary>source</summary><pre><code id="src-00"></code></pre></details>
       </section>
 
       <section id="fig-01">
@@ -261,6 +298,7 @@
         </div>
         <p class="how"><code>alt</code>/<code>else</code> frames, notes, and activation bars — parsed from plain Mermaid text.</p>
         <div class="panel"><div id="seq"></div></div>
+        <details class="src"><summary>source</summary><pre><code id="src-01"></code></pre></details>
       </section>
 
       <section id="fig-02">
@@ -270,6 +308,7 @@
         </div>
         <p class="how">Nodes reveal a tier at a time; each edge draws itself to connect them.</p>
         <div class="panel"><div id="flow"></div></div>
+        <details class="src"><summary>source</summary><pre><code id="src-02"></code></pre></details>
       </section>
 
       <section id="fig-03">
@@ -286,6 +325,24 @@
           <button id="reset">reset</button>
         </div>
         <div class="panel"><div id="state"></div></div>
+        <details class="src"><summary>source</summary><pre><code>const ctrl = stateDiagram(el, {
+  states: [
+    { id: 'idle', text: 'Idle' },
+    { id: 'loading', text: 'Loading' },
+    { id: 'ready', text: 'Ready' },
+    { id: 'error', text: 'Error', highlight: 'red' },
+  ],
+  transitions: [
+    { from: 'idle', to: 'loading', label: 'fetch()' },
+    { from: 'loading', to: 'ready', label: 'success' },
+    { from: 'loading', to: 'error', label: 'failure' },
+    { from: 'error', to: 'loading', label: 'retry()' },
+    { from: 'ready', to: 'idle', label: 'reset()' },
+  ],
+  initial: 'idle',
+  options: { trigger: 'manual', keyboard: true },
+})
+// ctrl.play() / .pause() / .resume() / .goToStep(n) / .reset()</code></pre></details>
       </section>
 
       <section id="fig-04">
@@ -295,6 +352,7 @@
         </div>
         <p class="how">Click a lit node (or focus it and press Enter) to open its branches. Nothing runs on a timer.</p>
         <div class="panel"><div id="flow-click"></div></div>
+        <details class="src"><summary>source</summary><pre><code id="src-04"></code></pre><div class="src-note">rendered with { advance: 'click', trigger: 'immediate' }</div></details>
       </section>
 
       <section id="fig-05">
@@ -304,6 +362,7 @@
         </div>
         <p class="how">Click the diagram to advance one message at a time.</p>
         <div class="panel"><div id="seq-click"></div></div>
+        <details class="src"><summary>source</summary><pre><code id="src-05"></code></pre><div class="src-note">rendered with { advance: 'click', trigger: 'immediate' }</div></details>
       </section>
 
       <section id="fig-06">
@@ -313,6 +372,7 @@
         </div>
         <p class="how"><code>state Working { … }</code> renders as a container; transitions cross its border.</p>
         <div class="panel"><div id="state-composite"></div></div>
+        <details class="src"><summary>source</summary><pre><code id="src-06"></code></pre></details>
       </section>
 
       <section id="fig-07">
@@ -320,7 +380,7 @@
           <span class="fig">FIG. 07 — AUTO-INIT</span>
           <h2>From markup alone</h2>
         </div>
-        <p class="how">A <code>&lt;pre class="animated-mermaid-diagrams"&gt;</code> block becomes a live diagram when <code>init()</code> runs.</p>
+        <p class="how">Mark any element — <code>class="animated-mermaid-diagrams"</code> (Mermaid-style) or <code>data-animated-mermaid</code> — and <code>init()</code> renders it in place.</p>
         <div class="panel">
           <pre class="animated-mermaid-diagrams">
 sequenceDiagram
@@ -329,7 +389,27 @@ sequenceDiagram
   User->>App: Hello
   App-->>User: Hi
           </pre>
+          <div data-animated-mermaid>
+flowchart LR
+  A[Write markup] --> B[Call init]
+  B --> C[Diagram]
+          </div>
         </div>
+        <details class="src"><summary>source</summary><pre><code>&lt;pre class="animated-mermaid-diagrams"&gt;   &lt;!-- Mermaid-style marker --&gt;
+sequenceDiagram
+  actor User
+  participant App
+  User-&gt;&gt;App: Hello
+  App--&gt;&gt;User: Hi
+&lt;/pre&gt;
+
+&lt;div data-animated-mermaid&gt;             &lt;!-- works on any element --&gt;
+flowchart LR
+  A[Write markup] --&gt; B[Call init]
+  B --&gt; C[Diagram]
+&lt;/div&gt;
+
+&lt;script&gt;AnimatedMermaidDiagrams.init()&lt;/script&gt;</code></pre></details>
       </section>
 
       <footer>
@@ -345,12 +425,8 @@ sequenceDiagram
   <script src="../dist/animated-mermaid-diagrams.umd.js"></script>
   <script>
     const { render, stateDiagram, init } = AnimatedMermaidDiagrams
-
-    // FIG. 00 — hero, with a live step counter driven by the real callbacks
-    const HERO_TOTAL = 13
-    const heroStep = document.getElementById('hero-step')
-    const heroCounter = document.getElementById('hero-counter')
-    render(document.getElementById('seq-tiers'), `
+    const CHARTS = {
+      seq_tiers: `
       sequenceDiagram
         actor Shopper
         participant Web as Web App
@@ -372,19 +448,8 @@ sequenceDiagram
         Orders-->>GW: 201 Created
         GW-->>Web: 201 Created
         Web-->>Shopper: Order confirmed
-    `, {
-      onStepStart: (i) => {
-        heroCounter.classList.add('live')
-        heroStep.textContent = 'STEP ' + String(i + 1).padStart(2, '0') + ' / ' + HERO_TOTAL
-      },
-      onComplete: () => {
-        heroCounter.classList.remove('live')
-        heroStep.textContent = 'COMPLETE — SCROLL AWAY TO REPLAY'
-      },
-    })
-
-    // FIG. 01
-    render(document.getElementById('seq'), `
+      `,
+      seq: `
       sequenceDiagram
         actor User
         participant App
@@ -403,15 +468,64 @@ sequenceDiagram
         else no links
           App-->>User: Delete immediately
         end
-    `)
-
-    // FIG. 02
-    render(document.getElementById('flow'), `
+      `,
+      flow: `
       flowchart TD
         A[Navigate to /items/id] --> B{Editable?}
         B -->|yes| C[Open editor]
         B -->|no| D[Show read-only view]
-    `)
+      `,
+      state_composite: `
+      stateDiagram-v2
+        [*] --> Working
+        state Working {
+          [*] --> Loading
+          Loading --> Saving
+        }
+        Working --> Idle : done
+        Idle --> Working : start
+      `,
+      flow_click: `
+      flowchart TD
+        S([Start]) --> B[Validate]
+        subgraph Validation
+          B --> T{OK?}
+        end
+        T -->|no| N[Reject]
+        T -->|yes| P[Process]
+        P --> C((Done))
+        N -.-> B
+      `,
+      seq_click: `
+      sequenceDiagram
+        actor Client
+        participant Server
+        Client->>Server: Request
+        Server-->>Client: Response
+        Client->>Server: Ack
+      `,
+    }
+
+    // FIG. 00 — hero, with a live step counter driven by the real callbacks
+    const HERO_TOTAL = 13
+    const heroStep = document.getElementById('hero-step')
+    const heroCounter = document.getElementById('hero-counter')
+    render(document.getElementById('seq-tiers'), CHARTS.seq_tiers, {
+      onStepStart: (i) => {
+        heroCounter.classList.add('live')
+        heroStep.textContent = 'STEP ' + String(i + 1).padStart(2, '0') + ' / ' + HERO_TOTAL
+      },
+      onComplete: () => {
+        heroCounter.classList.remove('live')
+        heroStep.textContent = 'COMPLETE — SCROLL AWAY TO REPLAY'
+      },
+    })
+
+    // FIG. 01
+    render(document.getElementById('seq'), CHARTS.seq)
+
+    // FIG. 02
+    render(document.getElementById('flow'), CHARTS.flow)
 
     // FIG. 03
     const ctrl = stateDiagram(document.getElementById('state'), {
@@ -438,41 +552,27 @@ sequenceDiagram
     document.getElementById('reset').onclick = () => ctrl.reset()
 
     // FIG. 04
-    render(document.getElementById('flow-click'), `
-      flowchart TD
-        S([Start]) --> B[Validate]
-        subgraph Validation
-          B --> T{OK?}
-        end
-        T -->|no| N[Reject]
-        T -->|yes| P[Process]
-        P --> C((Done))
-        N -.-> B
-    `, { advance: 'click', trigger: 'immediate' })
+    render(document.getElementById('flow-click'), CHARTS.flow_click, { advance: 'click', trigger: 'immediate' })
 
     // FIG. 05
-    render(document.getElementById('seq-click'), `
-      sequenceDiagram
-        actor Client
-        participant Server
-        Client->>Server: Request
-        Server-->>Client: Response
-        Client->>Server: Ack
-    `, { advance: 'click', trigger: 'immediate' })
+    render(document.getElementById('seq-click'), CHARTS.seq_click, { advance: 'click', trigger: 'immediate' })
 
     // FIG. 06
-    render(document.getElementById('state-composite'), `
-      stateDiagram-v2
-        [*] --> Working
-        state Working {
-          [*] --> Loading
-          Loading --> Saving
-        }
-        Working --> Idle : done
-        Idle --> Working : start
-    `)
+    render(document.getElementById('state-composite'), CHARTS.state_composite)
 
     // FIG. 07
+    // Source blocks mirror exactly what was rendered
+    const dedent = (t) => {
+      const lines = t.replace(/^\n+|\s+$/g, '').split('\n')
+      const indent = Math.min(...lines.filter((l) => l.trim()).map((l) => l.match(/^\s*/)[0].length))
+      return lines.map((l) => l.slice(indent)).join('\n')
+    }
+    const SRC = { '00': 'seq_tiers', '01': 'seq', '02': 'flow', '04': 'flow_click', '05': 'seq_click', '06': 'state_composite' }
+    for (const [num, key] of Object.entries(SRC)) {
+      const el = document.getElementById('src-' + num)
+      if (el) el.textContent = dedent(CHARTS[key])
+    }
+
     init()
   </script>
 </body>
