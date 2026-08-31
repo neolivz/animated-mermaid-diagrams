@@ -7,6 +7,7 @@ import type {
   DiagramController,
   FlowchartConfig,
   FlowNode,
+  FlowShape,
   ResolvedOptions,
   ThemeTokens,
 } from '../types'
@@ -59,17 +60,43 @@ interface EdgeAnchor {
   angle: number
 }
 
-function anchors(s: PlacedItem, e: PlacedItem, horizontal: boolean): EdgeAnchor {
+function anchors(
+  s: PlacedItem,
+  e: PlacedItem,
+  horizontal: boolean,
+  sShape?: FlowShape,
+  eShape?: FlowShape,
+): EdgeAnchor {
   if (horizontal) {
     const forward = e.x >= s.x + s.w
-    return forward
+    let { x1, y1, x2, y2, angle } = forward
       ? { x1: s.x + s.w, y1: s.y + s.h / 2, x2: e.x, y2: e.y + e.h / 2, angle: 0 }
       : { x1: s.x, y1: s.y + s.h / 2, x2: e.x + e.w, y2: e.y + e.h / 2, angle: 180 }
+    const dy = e.y + e.h / 2 - (s.y + s.h / 2)
+    if (sShape === 'diamond' && dy !== 0) {
+      y1 += Math.sign(dy) * s.h * 0.25
+      x1 += (forward ? -1 : 1) * s.w * 0.25
+    }
+    if (eShape === 'diamond' && dy !== 0) {
+      y2 -= Math.sign(dy) * e.h * 0.25
+      x2 += (forward ? 1 : -1) * e.w * 0.25
+    }
+    return { x1, y1, x2, y2, angle }
   }
   const forward = e.y >= s.y + s.h
-  return forward
+  let { x1, y1, x2, y2, angle } = forward
     ? { x1: s.x + s.w / 2, y1: s.y + s.h, x2: e.x + e.w / 2, y2: e.y, angle: 90 }
     : { x1: s.x + s.w / 2, y1: s.y, x2: e.x + e.w / 2, y2: e.y + e.h, angle: 270 }
+  const dx = e.x + e.w / 2 - (s.x + s.w / 2)
+  if (sShape === 'diamond' && dx !== 0) {
+    x1 += Math.sign(dx) * s.w * 0.25
+    y1 += (forward ? -1 : 1) * s.h * 0.25
+  }
+  if (eShape === 'diamond' && dx !== 0) {
+    x2 -= Math.sign(dx) * e.w * 0.25
+    y2 += (forward ? 1 : -1) * e.h * 0.25
+  }
+  return { x1, y1, x2, y2, angle }
 }
 
 function edgePath(a: EdgeAnchor, horizontal: boolean): string {
@@ -165,7 +192,7 @@ export function buildFlowchartSvg(
       continue
     }
 
-    const a = anchors(s, e, horizontal)
+    const a = anchors(s, e, horizontal, nodeById.get(edge.from)?.shape, nodeById.get(edge.to)?.shape)
     const path = el('path', {
       d: edgePath(a, horizontal),
       fill: 'none', stroke: t.line, 'stroke-width': 2, ...dashAttr,

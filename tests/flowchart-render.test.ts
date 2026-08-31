@@ -63,6 +63,16 @@ describe('buildFlowchartSvg', () => {
     expect(svg.getAttribute('aria-label')).toContain('Navigate')
   })
 
+  it('diamond branch edges exit from distinct border points, not one vertex', () => {
+    const { svg: dsvg } = buildFlowchartSvg(CONFIG, opts)
+    const starts = [...dsvg.querySelectorAll('path')]
+      .filter((p) => p.getAttribute('fill') === 'none')
+      .map((p) => (p.getAttribute('d') ?? '').match(/^M ([\d.e+-]+) ([\d.e+-]+)/))
+      .filter((m): m is RegExpMatchArray => m !== null)
+      .map((m) => `${m[1]},${m[2]}`)
+    expect(new Set(starts).size).toBe(starts.length)
+  })
+
   it('renders edge labels above node boxes (label layer last)', () => {
     const { svg: zsvg } = buildFlowchartSvg(CONFIG, opts)
     const root = zsvg.querySelector('g')!
