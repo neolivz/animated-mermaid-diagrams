@@ -132,6 +132,83 @@ describe('buildSequenceSvg', () => {
   })
 })
 
+const FRAME_CONFIG: SequenceConfig = {
+  actors: [
+    { id: 'a', label: 'A' },
+    { id: 'b', label: 'B' },
+  ],
+  steps: [
+    { from: 'a', to: 'b', text: 'first' },
+    { from: 'b', to: 'a', text: 'second' },
+  ],
+  frames: [
+    {
+      kind: 'alt',
+      label: 'happy path',
+      fromStep: 0,
+      toStep: 1,
+      sections: [{ label: 'sad', fromStep: 1 }],
+      depth: 0,
+    },
+  ],
+  activations: [{ actor: 'b', fromStep: 0, toStep: 1, level: 0 }],
+}
+
+describe('buildSequenceSvg — frames and activations', () => {
+  it('keeps the anim step count invariant at 1 + steps.length with frames and activations present', () => {
+    const { steps } = buildSequenceSvg(FRAME_CONFIG, opts)
+    expect(steps).toHaveLength(1 + FRAME_CONFIG.steps.length)
+  })
+
+  it('renders a frame rect and header tab with correct tokens and kind text', () => {
+    const { svg } = buildSequenceSvg(FRAME_CONFIG, opts)
+    const frameRect = [...svg.querySelectorAll('rect')].find(
+      (r) =>
+        r.getAttribute('fill') === 'none' &&
+        r.getAttribute('stroke') === lightTheme.noteBorder &&
+        r.getAttribute('rx') === '4',
+    )
+    expect(frameRect).toBeTruthy()
+
+    const tabRect = [...svg.querySelectorAll('rect')].find(
+      (r) =>
+        r.getAttribute('fill') === lightTheme.noteBackground &&
+        r.getAttribute('stroke') === lightTheme.noteBorder &&
+        r.getAttribute('height') === '18',
+    )
+    expect(tabRect).toBeTruthy()
+
+    const texts = [...svg.querySelectorAll('text')].map((t) => t.textContent)
+    expect(texts).toContain('alt')
+    expect(texts.some((t) => (t ?? '').includes('happy path'))).toBe(true)
+  })
+
+  it('renders one section divider line per total sections', () => {
+    const { svg } = buildSequenceSvg(FRAME_CONFIG, opts)
+    const dividers = [...svg.querySelectorAll('line')].filter(
+      (l) => l.getAttribute('stroke-dasharray') === '4 3',
+    )
+    expect(dividers).toHaveLength(1)
+  })
+
+  it('groups frame chrome into the anim step at fromStep + 1', () => {
+    const { steps } = buildSequenceSvg(FRAME_CONFIG, opts)
+    const group = steps[FRAME_CONFIG.frames![0].fromStep + 1]
+    const hasAlt = group.some((item) => (item.el.textContent ?? '').includes('alt'))
+    expect(hasAlt).toBe(true)
+  })
+
+  it('renders an activation bar with width 10 in its opening step group', () => {
+    const { svg, steps } = buildSequenceSvg(FRAME_CONFIG, opts)
+    const bar = [...svg.querySelectorAll('rect')].find((r) => r.getAttribute('width') === '10')
+    expect(bar).toBeTruthy()
+
+    const act = FRAME_CONFIG.activations![0]
+    const group = steps[act.fromStep + 1]
+    expect(group.some((item) => item.el === bar)).toBe(true)
+  })
+})
+
 describe('sequence()', () => {
   it('returns a controller and mounts into the container', () => {
     const container = document.createElement('div')

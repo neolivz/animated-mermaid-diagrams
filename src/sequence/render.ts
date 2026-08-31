@@ -1,7 +1,7 @@
 import type { AnimStep } from '../animator'
 import { createDiagram } from '../controller'
 import { resolveOptions } from '../theme'
-import { arrowHead, crossMark, el, svgRoot, textEl } from '../svg'
+import { arrowHead, crossMark, el, estimateTextWidth, svgRoot, textEl } from '../svg'
 import {
   ACTOR_BOX_H,
   HEADER_H,
@@ -24,7 +24,7 @@ export function buildSequenceSvg(
   opts: ResolvedOptions,
 ): { svg: SVGSVGElement; steps: AnimStep[] } {
   const t = opts.theme
-  const L = layoutSequence(config.actors, config.steps)
+  const L = layoutSequence(config.actors, config.steps, config.frames, config.activations)
   const pad = opts.padding
   const w = L.width + pad * 2
   const h = L.height + pad * 2
@@ -87,9 +87,99 @@ export function buildSequenceSvg(
   }
   animSteps.push(intro)
 
+  // Per-config-step anim groups are pre-allocated so frame/section/activation
+  // chrome can unshift into the group of the step where it first appears,
+  // before the per-step loop below fills in the message/note elements. The
+  // anim-steps array length stays 1 + config.steps.length either way.
+  const stepGroups: AnimStep[] = config.steps.map(() => [])
+
+  // Frame boxes + section dividers, drawn above lifelines but below activation
+  // bars and message/note elements (z-order bottom -> top).
+  for (const box of L.frames) {
+    const f = box.frame
+    const g = el('g')
+    g.appendChild(
+      el('rect', {
+        x: box.x1,
+        y: box.y1,
+        width: box.x2 - box.x1,
+        height: box.y2 - box.y1,
+        fill: 'none',
+        stroke: t.noteBorder,
+        rx: 4,
+      }),
+    )
+    const tabW = estimateTextWidth(f.kind, 11) + 14
+    g.appendChild(
+      el('rect', {
+        x: box.x1,
+        y: box.y1,
+        width: tabW,
+        height: 18,
+        fill: t.noteBackground,
+        stroke: t.noteBorder,
+      }),
+    )
+    g.appendChild(
+      textEl(box.x1 + tabW / 2, box.y1 + 9, f.kind, { color: t.textSecondary, size: 11, weight: '600' }),
+    )
+    if (f.label) {
+      g.appendChild(
+        textEl(box.x1 + tabW + 6, box.y1 + 9, `[${f.label}]`, {
+          color: t.textSecondary,
+          size: 11,
+          anchor: 'start',
+        }),
+      )
+    }
+    root.appendChild(g)
+    stepGroups[f.fromStep].unshift({ el: g, kind: 'fade' })
+
+    box.sectionYs.forEach((divY, si) => {
+      const sec = f.sections[si]
+      const dg = el('g')
+      dg.appendChild(
+        el('line', {
+          x1: box.x1,
+          y1: divY,
+          x2: box.x2,
+          y2: divY,
+          stroke: t.noteBorder,
+          'stroke-dasharray': '4 3',
+        }),
+      )
+      if (sec.label) {
+        dg.appendChild(
+          textEl(box.x1 + 6, divY + 12, `[${sec.label}]`, {
+            color: t.textSecondary,
+            size: 11,
+            anchor: 'start',
+          }),
+        )
+      }
+      root.appendChild(dg)
+      stepGroups[sec.fromStep].unshift({ el: dg, kind: 'fade' })
+    })
+  }
+
+  // Activation bars, drawn above frame chrome but below message/note elements.
+  for (const box of L.activations) {
+    const rect = el('rect', {
+      x: box.x,
+      y: box.y1,
+      width: 10,
+      height: box.y2 - box.y1,
+      fill: t.nodeBackground,
+      stroke: t.nodeBorder,
+      'stroke-width': 1,
+    })
+    root.appendChild(rect)
+    stepGroups[box.activation.fromStep].unshift({ el: rect, kind: 'fade' })
+  }
+
   config.steps.forEach((s, i) => {
     const y = L.stepYs[i]
-    const group: AnimStep = []
+    const group = stepGroups[i]
 
     if (s.type === 'note') {
       const nb = noteBounds(s, (id) => xOf.get(id))
@@ -165,8 +255,8 @@ export function buildSequenceSvg(
       }
       // else: unknown/unresolved actor id(s) — draw nothing for this step
     }
-    animSteps.push(group)
   })
+  animSteps.push(...stepGroups)
 
   return { svg, steps: animSteps }
 }
