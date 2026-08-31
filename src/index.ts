@@ -52,18 +52,20 @@ export function render(
   throw new Error('Cannot determine diagram type from config; set the "type" field')
 }
 
+const INIT_SELECTOR = 'pre.animated-mermaid-diagrams, [data-animated-mermaid]'
+
 export function init(root: ParentNode = document): DiagramController[] {
   const controllers: DiagramController[] = []
-  for (const pre of [...root.querySelectorAll('pre.animated-mermaid-diagrams')]) {
-    const source = pre.textContent ?? ''
+  for (const el of [...root.querySelectorAll(INIT_SELECTOR)]) {
+    const source = el.textContent ?? ''
     const div = document.createElement('div')
-    pre.replaceWith(div)
+    el.replaceWith(div)
     try {
       controllers.push(render(div, source))
     } catch (err) {
       // One bad diagram must not break the rest of the page: restore the
-      // original <pre> and keep scanning.
-      div.replaceWith(pre)
+      // original element and keep scanning.
+      div.replaceWith(el)
       console.error('[animated-mermaid-diagrams] failed to render diagram:', err)
     }
   }

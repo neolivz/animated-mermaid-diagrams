@@ -113,6 +113,58 @@ A->>B: Hi</pre>`
     document.body.innerHTML = ''
     spy.mockRestore()
   })
+
+  it('renders a data-animated-mermaid attribute on any element (not just pre)', () => {
+    document.body.innerHTML = `
+      <div data-animated-mermaid>sequenceDiagram
+A->>B: Hi</div>`
+    const controllers = init()
+    expect(controllers).toHaveLength(1)
+    expect(document.querySelector('[data-animated-mermaid]')).toBeNull()
+    expect(document.querySelector('svg')).not.toBeNull()
+    controllers.forEach((c) => c.destroy())
+    document.body.innerHTML = ''
+  })
+
+  it('processes a mixed page: class-form pre + data-form div + unmarked pre', () => {
+    document.body.innerHTML = `
+      <pre class="animated-mermaid-diagrams">sequenceDiagram
+A->>B: Hi</pre>
+      <div data-animated-mermaid>sequenceDiagram
+A->>B: Hi</div>
+      <pre class="other">not me</pre>`
+    const controllers = init()
+    expect(controllers).toHaveLength(2)
+    expect(document.querySelector('pre.other')).not.toBeNull()
+    controllers.forEach((c) => c.destroy())
+    document.body.innerHTML = ''
+  })
+
+  it('renders exactly once when an element carries both the class and the attribute', () => {
+    document.body.innerHTML = `
+      <pre class="animated-mermaid-diagrams" data-animated-mermaid>sequenceDiagram
+A->>B: Hi</pre>`
+    const controllers = init()
+    expect(controllers).toHaveLength(1)
+    controllers.forEach((c) => c.destroy())
+    document.body.innerHTML = ''
+  })
+
+  it('isolates failures for the data-attribute form too', () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    document.body.innerHTML = `
+      <div data-animated-mermaid>pie
+"a": 1</div>
+      <div data-animated-mermaid>sequenceDiagram
+A->>B: Hi</div>`
+    const controllers = init()
+    expect(controllers).toHaveLength(1)
+    expect(document.querySelectorAll('[data-animated-mermaid]')).toHaveLength(1) // bad one restored
+    expect(document.querySelector('svg')).not.toBeNull()
+    controllers.forEach((c) => c.destroy())
+    document.body.innerHTML = ''
+    spy.mockRestore()
+  })
 })
 
 describe('render config validation', () => {

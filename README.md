@@ -487,11 +487,23 @@ sequenceDiagram
   User->>App: Hello
   App-->>User: Hi
 </pre>
+<div data-animated-mermaid>
+sequenceDiagram
+  actor User
+  participant App
+  User->>App: Hello
+  App-->>User: Hi
+</div>
 <script src="https://unpkg.com/animated-mermaid-diagrams/dist/animated-mermaid-diagrams.umd.js"></script>
 <script>AnimatedMermaidDiagrams.init()</script>
 ```
 
-`init()` finds all `<pre class="animated-mermaid-diagrams">` elements and renders them in place, similar to Mermaid's `mermaid.initialize({ startOnLoad: true })`. A diagram that fails to parse is restored to its original `<pre>` (with a `console.error`) and does not affect the others.
+`init()` scans for two markers and renders each match in place, similar to Mermaid's `mermaid.initialize({ startOnLoad: true })`:
+
+- `<pre class="animated-mermaid-diagrams">` — the Mermaid-compatible convention (same class Mermaid itself looks for), for `<pre>` elements
+- `[data-animated-mermaid]` — a plain attribute marker (its value is ignored — presence is enough), the recommended form when the element isn't a `<pre>` (a `<div>`, `<code>`, etc.)
+
+An element carrying both markers is still rendered exactly once. A diagram that fails to parse is restored to its original element (with a `console.error`) and does not affect the others.
 
 ## Build and Package
 
