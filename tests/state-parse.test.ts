@@ -46,6 +46,7 @@ describe('parseState', () => {
       }`)
     expect(c.states.map((s) => s.id)).toContain('Inner')
     expect(c.states.map((s) => s.id)).toContain('Done')
+    expect(c.transitions).toContainEqual({ from: 'Inner', to: 'Done' })
     // first [*] wins as the diagram's initial
     expect(c.initial).toBe('Active')
   })
@@ -56,5 +57,26 @@ describe('parseState', () => {
 
   it('throws on non-state input', () => {
     expect(() => parseState('flowchart TD\nA-->B')).toThrow()
+  })
+
+  it('adopts a description declared after the state was first used', () => {
+    const c = parseState('stateDiagram-v2\n[*] --> w\nstate "Waiting" as w')
+    expect(c.states).toEqual([{ id: 'w', text: 'Waiting' }])
+  })
+
+  it('explicit [*] --> X overrides declaration order for initial', () => {
+    const c = parseState('stateDiagram-v2\nA --> B\n[*] --> B')
+    expect(c.initial).toBe('B')
+  })
+
+  it('initial fallback skips orphan declared states', () => {
+    const c = parseState('stateDiagram-v2\nstate "Waiting" as w\nA --> B')
+    expect(c.initial).toBe('A')
+  })
+
+  it('multiple finals share one end state', () => {
+    const c = parseState('stateDiagram-v2\n[*] --> A\nA --> [*]\nA --> B\nB --> [*]')
+    expect(c.states.filter((s) => s.type === 'end')).toHaveLength(1)
+    expect(c.transitions.filter((t) => t.to === '__end')).toHaveLength(2)
   })
 })

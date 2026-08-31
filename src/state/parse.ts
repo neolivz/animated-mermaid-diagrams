@@ -1,5 +1,6 @@
 import type { StateConfig, StateNode, StateTransition } from '../types'
 
+// Synthetic end-state id. A user-authored state literally named '__end' will collide (accepted v1 limitation).
 const END_ID = '__end'
 const TRANSITION = /^(\[\*\]|\w+)\s*-->\s*(\[\*\]|\w+)(?:\s*:\s*(.+))?$/
 const DESCRIBED = /^state\s+"([^"]+)"\s+as\s+(\w+)\s*$/
@@ -27,8 +28,12 @@ export function parseState(text: string): StateConfig {
   for (const line of lines.slice(1)) {
     const described = line.match(DESCRIBED)
     if (described) {
-      if (!states.some((s) => s.id === described[2])) {
+      const existing = states.find((s) => s.id === described[2])
+      if (!existing) {
         states.push({ id: described[2], text: described[1] })
+      } else if (existing.text === existing.id) {
+        // auto-placeholdered by ensure(); adopt the real description
+        existing.text = described[1]
       }
       continue
     }
@@ -60,6 +65,11 @@ export function parseState(text: string): StateConfig {
   }
 
   const config: StateConfig = { type: 'state', states, transitions }
-  config.initial = initial ?? states[0]?.id
+  // Fallback: first state that participates in a transition (an orphan declared
+  // via `state "..." as x` should not hijack the flow's entry point).
+  const firstInFlow = states.find((s) =>
+    transitions.some((tr) => tr.from === s.id || tr.to === s.id),
+  )
+  config.initial = initial ?? firstInFlow?.id ?? states[0]?.id
   return config
 }
