@@ -79,6 +79,15 @@ describe('buildFlowchartSvg', () => {
     const last = root.lastElementChild!
     expect([...last.querySelectorAll('text')].map((t) => t.textContent)).toContain('yes')
   })
+
+  it('edge paths terminate at the arrowhead base, not under the tip', () => {
+    const { svg: tsvg } = buildFlowchartSvg(CONFIG, opts)
+    const paths = [...tsvg.querySelectorAll('path')].filter((p) => p.getAttribute('fill') === 'none')
+    const heads = [...tsvg.querySelectorAll('polygon')].filter((p) => (p.getAttribute('transform') ?? '').includes('rotate'))
+    const endY = Number((paths[0].getAttribute('d') ?? '').trim().split(/[\s,]+/).pop())
+    const tipY = Number((heads[0].getAttribute('transform') ?? '').match(/translate\([\d.e+-]+,([\d.e+-]+)\)/)![1])
+    expect(tipY - endY).toBeCloseTo(10, 5)
+  })
 })
 
 describe('LR direction', () => {

@@ -105,6 +105,17 @@ describe('buildSequenceSvg', () => {
     expect(rotations[1]).toContain('rotate(180)')
   })
 
+  it('message lines terminate at the arrowhead base', () => {
+    const { svg: tsvg } = buildSequenceSvg(CONFIG, opts)
+    const lines = [...tsvg.querySelectorAll('line')].filter(
+      (l) => l.getAttribute('stroke') !== lightTheme.lifeline,
+    )
+    const heads = [...tsvg.querySelectorAll('polygon')]
+    const lineEndX = Number(lines[0].getAttribute('x2'))
+    const tipX = Number((heads[0].getAttribute('transform') ?? '').match(/translate\(([\d.e+-]+),/)![1])
+    expect(Math.abs(tipX - lineEndX)).toBeCloseTo(10, 5)
+  })
+
   it('skips steps referencing unknown actor ids without drawing at x=0', () => {
     const cfg: SequenceConfig = {
       actors: [{ id: 'a', label: 'A' }],

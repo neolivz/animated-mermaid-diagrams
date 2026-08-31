@@ -162,6 +162,15 @@ describe('buildStateSvg', () => {
     expect(yOf('success')).not.toBe(yOf('failure'))
   })
 
+  it('transition paths terminate at the arrowhead base', () => {
+    const { svg: tsvg } = buildStateSvg(CONFIG, opts)
+    const paths = [...tsvg.querySelectorAll('path')].filter((p) => p.getAttribute('fill') === 'none')
+    const heads = [...tsvg.querySelectorAll('polygon')]
+    const endY = Number((paths[0].getAttribute('d') ?? '').trim().split(/[\s,]+/).pop())
+    const tipY = Number((heads[0].getAttribute('transform') ?? '').match(/translate\([\d.e+-]+,([\d.e+-]+)\)/)![1])
+    expect(Math.abs(tipY - endY)).toBeCloseTo(10, 5)
+  })
+
   it('draws no start dot when no initial is declared, and BFS starts from the first in-flow state', () => {
     const cfg: StateConfig = {
       states: [

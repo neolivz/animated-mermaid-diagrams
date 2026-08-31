@@ -15,6 +15,10 @@ import {
 } from './layout'
 import type { DiagramController, ResolvedOptions, SequenceConfig } from '../types'
 
+// Arrowhead polygon length (see arrowHead in svg.ts) — message lines stop this
+// far short of the arrival point so the line flows into the head, not under it.
+const HEAD_LEN = 10
+
 export function buildSequenceSvg(
   config: SequenceConfig,
   opts: ResolvedOptions,
@@ -112,7 +116,7 @@ export function buildSequenceSvg(
         const color = s.highlight ? t.highlight : s.type === 'response' ? t.lineResponse : t.line
         const dashAttr: Record<string, string> = s.type === 'response' ? { 'stroke-dasharray': '6 4' } : {}
         const path = el('path', {
-          d: `M ${x} ${y} C ${x + SELF_CURVE_REACH} ${y}, ${x + SELF_CURVE_REACH} ${y + SELF_CURVE_DROP}, ${x + SELF_TIP_GAP} ${y + SELF_CURVE_DROP}`,
+          d: `M ${x} ${y} C ${x + SELF_CURVE_REACH} ${y}, ${x + SELF_CURVE_REACH} ${y + SELF_CURVE_DROP}, ${x + SELF_TIP_GAP + HEAD_LEN} ${y + SELF_CURVE_DROP}`,
           fill: 'none',
           stroke: color,
           'stroke-width': 2,
@@ -136,10 +140,13 @@ export function buildSequenceSvg(
         const color = s.highlight ? t.highlight : s.type === 'response' ? t.lineResponse : t.line
         const dashAttr: Record<string, string> = s.type === 'response' ? { 'stroke-dasharray': '6 4' } : {}
         const tipX = x2 - dir * 4
+        // Trim the line back to the arrowhead's base so it flows into the arrow
+        // instead of under it; the failed (X) tip has no head to trim against.
+        const lineEndX = s.failed ? tipX : tipX - dir * HEAD_LEN
         const line = el('line', {
           x1,
           y1: y,
-          x2: tipX,
+          x2: lineEndX,
           y2: y,
           stroke: color,
           'stroke-width': 2,

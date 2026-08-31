@@ -60,6 +60,10 @@ interface EdgeAnchor {
   angle: number
 }
 
+// Arrowhead polygon length (see arrowHead in svg.ts) — edge paths stop this far
+// short of the border so the line flows into the head instead of under it.
+const HEAD_LEN = 10
+
 function anchors(
   s: PlacedItem,
   e: PlacedItem,
@@ -151,7 +155,7 @@ export function buildFlowchartSvg(
         const cx = s.x + s.w / 2
         const by = s.y + s.h
         const path = el('path', {
-          d: `M ${cx - 8} ${by} C ${cx - 8} ${by + 34}, ${cx + 8} ${by + 34}, ${cx + 8} ${by + 2}`,
+          d: `M ${cx - 8} ${by} C ${cx - 8} ${by + 34}, ${cx + 8} ${by + 34}, ${cx + 8} ${by + 12}`,
           fill: 'none', stroke: t.line, 'stroke-width': 2, ...dashAttr,
         })
         root.appendChild(path)
@@ -172,7 +176,7 @@ export function buildFlowchartSvg(
         const cy = s.y + s.h / 2
         const rx = s.x + s.w
         const path = el('path', {
-          d: `M ${rx} ${cy - 8} C ${rx + 36} ${cy - 8}, ${rx + 36} ${cy + 8}, ${rx + 2} ${cy + 8}`,
+          d: `M ${rx} ${cy - 8} C ${rx + 36} ${cy - 8}, ${rx + 36} ${cy + 8}, ${rx + 12} ${cy + 8}`,
           fill: 'none', stroke: t.line, 'stroke-width': 2, ...dashAttr,
         })
         root.appendChild(path)
@@ -193,8 +197,13 @@ export function buildFlowchartSvg(
     }
 
     const a = anchors(s, e, horizontal, nodeById.get(edge.from)?.shape, nodeById.get(edge.to)?.shape)
+    // Stop the path at the arrowhead's base so the line flows into the arrow,
+    // not underneath it into the box (head length = 10).
+    const trimmed: EdgeAnchor = { ...a }
+    if (horizontal) trimmed.x2 += a.angle === 0 ? -HEAD_LEN : HEAD_LEN
+    else trimmed.y2 += a.angle === 90 ? -HEAD_LEN : HEAD_LEN
     const path = el('path', {
-      d: edgePath(a, horizontal),
+      d: edgePath(trimmed, horizontal),
       fill: 'none', stroke: t.line, 'stroke-width': 2, ...dashAttr,
     })
     root.appendChild(path)

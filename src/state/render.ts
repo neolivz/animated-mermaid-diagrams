@@ -14,6 +14,10 @@ import type {
 
 const START_ID = '__start'
 
+// Arrowhead polygon length (see arrowHead in svg.ts) — transition paths stop
+// this far short of the border so the line flows into the head, not under it.
+const HEAD_LEN = 10
+
 function stateSize(s: StateNode): { w: number; h: number } {
   if (s.type === 'start') return { w: 16, h: 16 }
   if (s.type === 'end') return { w: 22, h: 22 }
@@ -116,13 +120,16 @@ export function buildStateSvg(
     if (tr.from === tr.to) {
       // self-loop above the state
       const cx = s.x + s.w / 2
+      // End tangent runs from control (cx-44, s.y-34) into (cx-12, s.y), direction
+      // (32, 34) ≈ 47°; trim the path back ~HEAD_LEN along that tangent so the
+      // line flows into the arrowhead instead of under it.
       const path = el('path', {
-        d: `M ${cx + 12} ${s.y} C ${cx + 44} ${s.y - 34}, ${cx - 44} ${s.y - 34}, ${cx - 12} ${s.y}`,
+        d: `M ${cx + 12} ${s.y} C ${cx + 44} ${s.y - 34}, ${cx - 44} ${s.y - 34}, ${cx - 18.9} ${s.y - 7.3}`,
         fill: 'none', stroke: t.line, 'stroke-width': 2,
       })
       root.appendChild(path)
       anim.push({ el: path, kind: 'draw' })
-      const head = arrowHead(cx - 12, s.y, 70, t.line)
+      const head = arrowHead(cx - 12, s.y, 47, t.line)
       root.appendChild(head)
       anim.push({ el: head, kind: 'fade' })
       extraTop = Math.max(extraTop, -(s.y - 34))
@@ -157,8 +164,11 @@ export function buildStateSvg(
     const fan = config.transitions.filter((o) => o.from === tr.from && o.from !== o.to)
     const fanIdx = fan.indexOf(tr)
     const fanDy = fanIdx <= 0 ? 0 : fanIdx % 2 === 1 ? 14 : -14
+    // Stop the path at the arrowhead's base so the line flows into the arrow,
+    // not underneath it into the box (head length = HEAD_LEN); head stays at (x2, y2).
+    const endY = down ? y2 - HEAD_LEN : y2 + HEAD_LEN
     const path = el('path', {
-      d: `M ${x1} ${y1} C ${x1 + bow} ${y1 + mid}, ${x2 + bow} ${y2 - mid}, ${x2} ${y2}`,
+      d: `M ${x1} ${y1} C ${x1 + bow} ${y1 + mid}, ${x2 + bow} ${y2 - mid}, ${x2} ${endY}`,
       fill: 'none', stroke: t.line, 'stroke-width': 2,
     })
     root.appendChild(path)
@@ -192,8 +202,9 @@ export function buildStateSvg(
       const x2 = e.x + e.w / 2
       const y2 = e.y
       const mid = (y2 - y1) / 2
+      // Start connector always flows downward, so trim HEAD_LEN off the arrival end.
       const path = el('path', {
-        d: `M ${x1} ${y1} C ${x1} ${y1 + mid}, ${x2} ${y2 - mid}, ${x2} ${y2}`,
+        d: `M ${x1} ${y1} C ${x1} ${y1 + mid}, ${x2} ${y2 - mid}, ${x2} ${y2 - HEAD_LEN}`,
         fill: 'none', stroke: t.line, 'stroke-width': 2,
       })
       root.appendChild(path)
