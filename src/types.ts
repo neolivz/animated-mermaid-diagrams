@@ -76,10 +76,39 @@ export interface SequenceStep {
   failed?: boolean
 }
 
+export interface SequenceFrameSection {
+  label?: string
+  /** step index where this section begins */
+  fromStep: number
+}
+
+export interface SequenceFrame {
+  kind: 'alt' | 'opt' | 'loop' | 'par'
+  label?: string
+  /** inclusive step range the frame encloses */
+  fromStep: number
+  toStep: number
+  /** extra sections from else/and; the first section is implicit */
+  sections: SequenceFrameSection[]
+  /** nesting depth, 0 = outermost */
+  depth: number
+}
+
+export interface SequenceActivation {
+  actor: string
+  /** inclusive step range the bar spans */
+  fromStep: number
+  toStep: number
+  /** overlap level for the same actor (0 = base bar) */
+  level: number
+}
+
 export interface SequenceConfig {
   type?: 'sequence'
   actors: SequenceActor[]
   steps: SequenceStep[]
+  frames?: SequenceFrame[]
+  activations?: SequenceActivation[]
   options?: DiagramOptions
 }
 

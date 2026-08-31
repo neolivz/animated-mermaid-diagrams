@@ -90,4 +90,81 @@ describe('parseSequence', () => {
       { over: 'A', text: 'to the right', type: 'note' },
     ])
   })
+
+  it('parses alt/else frames with step ranges and nesting depth', () => {
+    const c = parseSequence(`sequenceDiagram
+      A->>B: pre
+      alt happy path
+        B-->>A: ok
+        opt logging
+          B->>B: log
+        end
+      else sad
+        B-->>A: fail
+      end
+      A->>B: post`)
+    expect(c.steps).toHaveLength(5)
+    expect(c.frames).toEqual([
+      { kind: 'opt', label: 'logging', fromStep: 2, toStep: 2, sections: [], depth: 1 },
+      {
+        kind: 'alt', label: 'happy path', fromStep: 1, toStep: 3, depth: 0,
+        sections: [{ label: 'sad', fromStep: 3 }],
+      },
+    ])
+  })
+
+  it('parses loop and par/and frames', () => {
+    const c = parseSequence(`sequenceDiagram
+      loop every 5s
+        A->>B: poll
+      end
+      par fetch
+        A->>B: a
+      and store
+        A->>B: b
+      end`)
+    expect(c.frames).toEqual([
+      { kind: 'loop', label: 'every 5s', fromStep: 0, toStep: 0, sections: [], depth: 0 },
+      { kind: 'par', label: 'fetch', fromStep: 1, toStep: 2, depth: 0, sections: [{ label: 'store', fromStep: 2 }] },
+    ])
+  })
+
+  it('drops empty frames and closes unterminated ones at EOF', () => {
+    const c = parseSequence(`sequenceDiagram
+      opt nothing inside
+      end
+      loop forever
+        A->>B: x`)
+    expect(c.frames).toEqual([
+      { kind: 'loop', label: 'forever', fromStep: 0, toStep: 0, sections: [], depth: 0 },
+    ])
+  })
+
+  it('parses explicit activate/deactivate into spans', () => {
+    const c = parseSequence(`sequenceDiagram
+      A->>B: start
+      activate B
+      B->>B: work
+      B-->>A: done
+      deactivate B`)
+    expect(c.activations).toEqual([{ actor: 'B', fromStep: 0, toStep: 2, level: 0 }])
+  })
+
+  it('parses +/- arrow shorthand and overlap levels', () => {
+    const c = parseSequence(`sequenceDiagram
+      A->>+B: outer
+      B->>+B: inner
+      B-->>-B: inner done
+      B-->>-A: outer done`)
+    expect(c.steps).toHaveLength(4)
+    expect(c.activations).toEqual([
+      { actor: 'B', fromStep: 1, toStep: 2, level: 1 },
+      { actor: 'B', fromStep: 0, toStep: 3, level: 0 },
+    ])
+  })
+
+  it('leaves unclosed activations open to the last step', () => {
+    const c = parseSequence('sequenceDiagram\nA->>+B: go\nB->>A: mid')
+    expect(c.activations).toEqual([{ actor: 'B', fromStep: 0, toStep: 1, level: 0 }])
+  })
 })
