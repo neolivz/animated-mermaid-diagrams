@@ -110,4 +110,46 @@ describe('Animator', () => {
     a.play() // no-op after destroy
     expect(onStepStart).toHaveBeenCalledTimes(1)
   })
+
+  it('drawDash parks the hidden offset inside the trailing gap', () => {
+    const l = line()
+    l.setAttribute('x2', '23') // length 23: NOT a multiple of dash+gap=10
+    new Animator([[{ el: l, kind: 'drawDash' }]], OPTS)
+    expect(l.style.strokeDasharray).toBe('6 4 6 4 6 4 0 23')
+    expect(l.style.strokeDashoffset).toBe('30') // (6+4)*ceil(23/10)
+  })
+
+  it('pause before play is a no-op; resume after completion does not re-fire onComplete', () => {
+    const { steps } = makeSteps()
+    const onComplete = vi.fn()
+    const a = new Animator(steps, { ...OPTS, onComplete })
+    a.pause()
+    a.resume()
+    a.play()
+    vi.advanceTimersByTime(5000)
+    expect(onComplete).toHaveBeenCalledTimes(1)
+    a.pause()
+    a.resume()
+    vi.advanceTimersByTime(5000)
+    expect(onComplete).toHaveBeenCalledTimes(1)
+  })
+
+  it('mutating methods are no-ops after destroy', () => {
+    const { steps, els } = makeSteps()
+    const a = new Animator(steps, OPTS)
+    a.destroy()
+    a.showAll()
+    expect((els[0] as SVGElement).style.opacity).toBe('0')
+    a.goToStep(2)
+    expect((els[2] as SVGElement).style.opacity).toBe('0')
+  })
+
+  it('goToStep clamps out-of-range indices', () => {
+    const { steps, els } = makeSteps()
+    const a = new Animator(steps, OPTS)
+    a.goToStep(99)
+    expect((els[2] as SVGElement).style.opacity).toBe('')
+    a.goToStep(-5)
+    expect((els[0] as SVGElement).style.opacity).toBe('0')
+  })
 })

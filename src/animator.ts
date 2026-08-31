@@ -28,15 +28,27 @@ function pathLength(e: SVGElement): number {
   return 300
 }
 
+const DASH = 6
+const GAP = 4
+
+/** Cumulative length of whole dash+gap pairs covering `len`. Used as the hidden
+ *  dashoffset so the visible window parks entirely inside the trailing gap. */
+function dashedHideOffset(len: number): number {
+  return (DASH + GAP) * Math.ceil(len / (DASH + GAP))
+}
+
 /** Dash pattern that looks dashed while supporting a dashoffset "draw" reveal:
- *  repeats dash/gap to cover the path, then one full-length gap. */
-function dashedDrawArray(len: number, dash = 6, gap = 4): string {
+ *  repeats dash/gap to cover the path, then one full-length trailing gap. */
+function dashedDrawArray(len: number): string {
   const parts: number[] = []
-  for (let acc = 0; acc < len; acc += dash + gap) parts.push(dash, gap)
+  for (let acc = 0; acc < len; acc += DASH + GAP) parts.push(DASH, GAP)
   parts.push(0, Math.ceil(len))
   return parts.join(' ')
 }
 
+// Targets are authored by our renderers with attributes only — hide/show may own
+// these inline style properties outright. transformBox/transformOrigin set for
+// 'scale' are intentional permanent residue (needed for center-origin scaling).
 function hide(t: AnimTarget): void {
   const s = t.el.style
   if (t.kind === 'fade' || t.kind === 'scale') {
@@ -48,8 +60,13 @@ function hide(t: AnimTarget): void {
     }
   } else {
     const len = pathLength(t.el)
-    s.strokeDasharray = t.kind === 'draw' ? String(len) : dashedDrawArray(len)
-    s.strokeDashoffset = String(len)
+    if (t.kind === 'draw') {
+      s.strokeDasharray = String(len)
+      s.strokeDashoffset = String(len)
+    } else {
+      s.strokeDasharray = dashedDrawArray(len)
+      s.strokeDashoffset = String(dashedHideOffset(len))
+    }
   }
 }
 
@@ -78,12 +95,13 @@ function animateTarget(t: AnimTarget, duration: number): Animation | null {
   } else {
     const len = pathLength(t.el)
     const dash = t.kind === 'draw' ? String(len) : dashedDrawArray(len)
+    const from = t.kind === 'draw' ? len : dashedHideOffset(len)
     frames = [
-      { strokeDashoffset: len, strokeDasharray: dash },
+      { strokeDashoffset: from, strokeDasharray: dash },
       { strokeDashoffset: 0, strokeDasharray: dash },
     ]
   }
-  return target.animate(frames, { duration, easing: 'ease-out', fill: 'backwards' })
+  return target.animate(frames, { duration, easing: 'ease-out' })
 }
 
 export class Animator {
@@ -116,6 +134,7 @@ export class Animator {
   }
 
   reset(): void {
+    if (this.destroyed) return
     this.stopTimers()
     this.isPaused = false
     this.nextIndex = 0
@@ -123,6 +142,7 @@ export class Animator {
   }
 
   showAll(): void {
+    if (this.destroyed) return
     this.stopTimers()
     this.isPaused = false
     this.nextIndex = this.steps.length
@@ -138,6 +158,7 @@ export class Animator {
   private runStep(i: number): void {
     if (i >= this.steps.length) {
       this.nextIndex = this.steps.length
+      this.running = []
       this.opts.onComplete?.()
       return
     }
@@ -158,6 +179,7 @@ export class Animator {
   }
 
   pause(): void {
+    if (this.destroyed) return
     if (this.timer === null && this.running.length === 0) return
     if (this.isPaused) return
     this.isPaused = true
@@ -166,13 +188,13 @@ export class Animator {
       this.timer = null
       this.remaining = Math.max(0, this.remaining - (Date.now() - this.stepStartedAt))
     }
-    for (const a of this.running) a.pause()
+    for (const a of this.running) if (a.playState === 'running') a.pause()
   }
 
   resume(): void {
     if (!this.isPaused || this.destroyed) return
     this.isPaused = false
-    for (const a of this.running) a.play()
+    for (const a of this.running) if (a.playState === 'paused') a.play()
     this.stepStartedAt = Date.now()
     this.timer = setTimeout(() => {
       this.timer = null
@@ -182,10 +204,11 @@ export class Animator {
 
   /** Show steps 0..n (inclusive) in their completed state; later steps hidden. */
   goToStep(n: number): void {
+    if (this.destroyed) return
     this.stopTimers()
     this.isPaused = false
     this.hideAll()
-    const upto = Math.min(n + 1, this.steps.length)
+    const upto = Math.max(0, Math.min(n + 1, this.steps.length))
     for (let i = 0; i < upto; i++) for (const t of this.steps[i]) show(t)
     this.nextIndex = upto
   }
