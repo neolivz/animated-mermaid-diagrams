@@ -1,6 +1,6 @@
 {
   "name": "animated-mermaid-diagrams",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Drop-in animated rendering for Mermaid diagrams. One dependency: @dagrejs/dagre (the same layout engine Mermaid uses).",
   "license": "MIT",
   "type": "module",
@@ -55,7 +55,7 @@
     "type": "git",
     "url": "git+https://github.com/neolivz/animated-mermaid-diagrams.git"
   },
-  "homepage": "https://github.com/neolivz/animated-mermaid-diagrams#readme",
+  "homepage": "https://neolivz.github.io/animated-mermaid-diagrams/demo/",
   "bugs": {
     "url": "https://github.com/neolivz/animated-mermaid-diagrams/issues"
   },
