@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>animated-mermaid-diagrams demo</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 860px; margin: 0 auto; padding: 2rem 1rem 60vh; }
+    section { margin-bottom: 70vh; }
+    h2 { color: #334155; }
+    .controls button { margin-right: .5rem; }
+  </style>
+</head>
+<body>
+  <h1>animated-mermaid-diagrams</h1>
+  <p>Scroll down — each diagram animates when it enters the viewport, and replays on re-entry.</p>
+
+  <section>
+    <h2>Sequence (mermaid text)</h2>
+    <div id="seq"></div>
+  </section>
+
+  <section>
+    <h2>Flowchart (mermaid text)</h2>
+    <div id="flow"></div>
+  </section>
+
+  <section>
+    <h2>State diagram (JS config, manual controls)</h2>
+    <div class="controls">
+      <button id="play">play</button>
+      <button id="pause">pause</button>
+      <button id="resume">resume</button>
+      <button id="step2">goToStep(2)</button>
+      <button id="reset">reset</button>
+    </div>
+    <div id="state"></div>
+  </section>
+
+  <section>
+    <h2>Auto-init from &lt;pre&gt;</h2>
+    <pre class="animated-mermaid-diagrams">
+sequenceDiagram
+  actor User
+  participant App
+  User->>App: Hello
+  App-->>User: Hi
+    </pre>
+  </section>
+
+  <script src="../dist/animated-mermaid-diagrams.umd.js"></script>
+  <script>
+    const { render, stateDiagram, init } = AnimatedMermaidDiagrams
+
+    render(document.getElementById('seq'), `
+      sequenceDiagram
+        actor User
+        participant App
+        participant Backend
+
+        User->>App: Click delete on item
+        App->>Backend: GET resource usage
+        Backend-->>App: Returns list with linked record
+        App-->>User: Show dialog with linked record
+        User->>App: Click the record link
+        Note over App: Router intercepts navigation
+        App-->>User: Record editor loads
+    `)
+
+    render(document.getElementById('flow'), `
+      flowchart TD
+        A[Navigate to /items/id] --> B{Editable?}
+        B -->|yes| C[Open editor]
+        B -->|no| D[Show read-only view]
+    `)
+
+    const ctrl = stateDiagram(document.getElementById('state'), {
+      states: [
+        { id: 'idle', text: 'Idle' },
+        { id: 'loading', text: 'Loading' },
+        { id: 'ready', text: 'Ready' },
+        { id: 'error', text: 'Error', highlight: 'red' },
+      ],
+      transitions: [
+        { from: 'idle', to: 'loading', label: 'fetch()' },
+        { from: 'loading', to: 'ready', label: 'success' },
+        { from: 'loading', to: 'error', label: 'failure' },
+        { from: 'error', to: 'loading', label: 'retry()' },
+        { from: 'ready', to: 'idle', label: 'reset()' },
+      ],
+      initial: 'idle',
+      options: { trigger: 'manual' },
+    })
+    document.getElementById('play').onclick = () => ctrl.play()
+    document.getElementById('pause').onclick = () => ctrl.pause()
+    document.getElementById('resume').onclick = () => ctrl.resume()
+    document.getElementById('step2').onclick = () => ctrl.goToStep(2)
+    document.getElementById('reset').onclick = () => ctrl.reset()
+
+    init()
+  </script>
+</body>
+</html>
