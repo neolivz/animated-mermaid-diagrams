@@ -13,8 +13,16 @@ export interface ThemeTokens {
   lifeline: string
 }
 
+/** Shared shape for the `highlight` field on sequence steps, flowchart nodes,
+ *  and state nodes: `true`/`'green'` use the `highlight` theme token, `'red'`
+ *  uses `highlightRed`, `false`/`undefined` uses the element's normal color. */
+export type Highlight = boolean | 'red' | 'green'
+
 export interface DiagramOptions {
-  theme?: 'light' | 'dark' | 'auto' | ThemeTokens
+  /** `'light' | 'dark' | 'auto'`, or a theme object. The object may be a full
+   *  `ThemeTokens` (used exactly as given) or a partial one — unspecified
+   *  tokens fall back to the auto-resolved built-in theme. */
+  theme?: 'light' | 'dark' | 'auto' | Partial<ThemeTokens>
   animate?: boolean
   trigger?: 'onScroll' | 'immediate' | 'manual'
   /** 'auto' (default) plays on a timer; 'click' waits for the viewer to click
@@ -76,7 +84,7 @@ export interface SequenceStep {
   text: string
   type?: 'request' | 'response' | 'note'
   over?: string | string[]
-  highlight?: boolean
+  highlight?: Highlight
   /** parsed from Mermaid -x / --x arrows; renders an X instead of an arrowhead */
   failed?: boolean
 }
@@ -126,7 +134,7 @@ export interface FlowNode {
   id: string
   text: string
   shape?: FlowShape
-  highlight?: boolean
+  highlight?: Highlight
   /** id of the enclosing subgraph, if any */
   group?: string
 }
@@ -164,7 +172,7 @@ export interface StateNode {
   id: string
   text: string
   type?: 'default' | 'start' | 'end'
-  highlight?: boolean | 'red' | 'green'
+  highlight?: Highlight
   /** id of the enclosing composite state, if any */
   group?: string
 }

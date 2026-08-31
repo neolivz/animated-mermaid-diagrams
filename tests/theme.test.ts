@@ -22,6 +22,31 @@ describe('themes', () => {
     expect(resolveTheme(custom)).toBe(custom)
   })
 
+  it('resolveTheme merges a partial theme object over the auto-resolved base', () => {
+    // jsdom has no matchMedia by default, so the base is lightTheme.
+    const merged = resolveTheme({ background: '#123456' })
+    expect(merged.background).toBe('#123456')
+    expect(merged.text).toBe(lightTheme.text)
+    expect(merged.highlight).toBe(lightTheme.highlight)
+    expect(merged.lifeline).toBe(lightTheme.lifeline)
+  })
+
+  it('resolveTheme merges a partial theme object over the dark base when prefers-color-scheme is dark', () => {
+    const original = (globalThis as { matchMedia?: unknown }).matchMedia
+    ;(globalThis as { matchMedia?: unknown }).matchMedia = (q: string) => ({
+      matches: q.includes('dark'),
+    })
+    try {
+      const merged = resolveTheme({ background: '#123456' })
+      expect(merged.background).toBe('#123456')
+      expect(merged.text).toBe(darkTheme.text)
+      expect(merged.highlight).toBe(darkTheme.highlight)
+    } finally {
+      if (original === undefined) delete (globalThis as { matchMedia?: unknown }).matchMedia
+      else (globalThis as { matchMedia?: unknown }).matchMedia = original
+    }
+  })
+
   it("resolveTheme('auto') falls back to light when matchMedia is unavailable", () => {
     // jsdom has no matchMedia by default
     expect(resolveTheme('auto')).toBe(lightTheme)

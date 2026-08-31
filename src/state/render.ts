@@ -1,7 +1,7 @@
 import type { AnimStep } from '../animator'
 import { createDiagram } from '../controller'
 import { graphLayout, type PlacedNode } from '../graph-layout'
-import { resolveOptions } from '../theme'
+import { highlightColor, resolveOptions } from '../theme'
 import { arrowHead, el, estimateTextWidth, svgRoot, textEl } from '../svg'
 import type {
   DiagramController,
@@ -43,12 +43,6 @@ function stateSize(s: StateNode): { w: number; h: number } {
   return { w: Math.max(estimateTextWidth(s.text) + 28, 64), h: 36 }
 }
 
-function strokeFor(s: StateNode, t: ThemeTokens): string {
-  if (s.highlight === 'red') return t.highlightRed
-  if (s.highlight) return t.highlight
-  return t.nodeBorder
-}
-
 function stateGroup(s: StateNode, p: PlacedNode, t: ThemeTokens): SVGGElement {
   const g = el('g')
   const cx = p.x + p.w / 2
@@ -62,7 +56,7 @@ function stateGroup(s: StateNode, p: PlacedNode, t: ThemeTokens): SVGGElement {
     g.appendChild(
       el('rect', {
         x: p.x, y: p.y, width: p.w, height: p.h, rx: 8,
-        fill: t.nodeBackground, stroke: strokeFor(s, t),
+        fill: t.nodeBackground, stroke: highlightColor(s.highlight, t) ?? t.nodeBorder,
         'stroke-width': s.highlight ? 2.5 : 1.5,
       }),
     )

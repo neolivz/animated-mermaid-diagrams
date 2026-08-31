@@ -1,6 +1,6 @@
 import type { AnimStep } from '../animator'
 import { createDiagram } from '../controller'
-import { resolveOptions } from '../theme'
+import { highlightColor, resolveOptions } from '../theme'
 import { arrowHead, crossMark, el, estimateTextWidth, svgRoot, textEl } from '../svg'
 import {
   ACTOR_BOX_H,
@@ -205,7 +205,7 @@ export function buildSequenceSvg(
     } else if (s.from !== undefined && s.from === s.to) {
       const x = xOf.get(s.from)
       if (x !== undefined) {
-        const color = s.highlight ? t.highlight : s.type === 'response' ? t.lineResponse : t.line
+        const color = highlightColor(s.highlight, t) ?? (s.type === 'response' ? t.lineResponse : t.line)
         const dashAttr: Record<string, string> = s.type === 'response' ? { 'stroke-dasharray': '6 4' } : {}
         const path = el('path', {
           d: `M ${x} ${y} C ${x + SELF_CURVE_REACH} ${y}, ${x + SELF_CURVE_REACH} ${y + SELF_CURVE_DROP}, ${x + SELF_TIP_GAP + HEAD_LEN} ${y + SELF_CURVE_DROP}`,
@@ -229,7 +229,7 @@ export function buildSequenceSvg(
       const x2 = xOf.get(s.to ?? '')
       if (x1 !== undefined && x2 !== undefined) {
         const dir = x2 > x1 ? 1 : -1
-        const color = s.highlight ? t.highlight : s.type === 'response' ? t.lineResponse : t.line
+        const color = highlightColor(s.highlight, t) ?? (s.type === 'response' ? t.lineResponse : t.line)
         const dashAttr: Record<string, string> = s.type === 'response' ? { 'stroke-dasharray': '6 4' } : {}
         const tipX = x2 - dir * 4
         // Trim the line back to the arrowhead's base so it flows into the arrow

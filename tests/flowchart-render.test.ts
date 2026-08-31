@@ -50,6 +50,26 @@ describe('buildFlowchartSvg', () => {
     expect(highlighted).toHaveLength(1)
   })
 
+  it("highlight: 'red' uses highlightRed; highlight: 'green' uses the highlight token", () => {
+    const cfg: FlowchartConfig = {
+      nodes: [
+        { id: 'a', text: 'A', highlight: 'red' },
+        { id: 'b', text: 'B', highlight: 'green' },
+      ],
+      edges: [{ from: 'a', to: 'b' }],
+      direction: 'TB',
+    }
+    const { svg: rsvg } = buildFlowchartSvg(cfg, opts)
+    const redRect = [...rsvg.querySelectorAll('rect')].find(
+      (r) => r.getAttribute('stroke') === lightTheme.highlightRed,
+    )
+    const greenRect = [...rsvg.querySelectorAll('rect')].find(
+      (r) => r.getAttribute('stroke') === lightTheme.highlight,
+    )
+    expect(redRect).toBeDefined()
+    expect(greenRect).toBeDefined()
+  })
+
   it('animates layer by layer: nodes, then connecting edges, then next layer', () => {
     // layers: [start], [check], [editor, readonly]
     // steps: L0 nodes, edges→L1, L1 nodes, edges→L2, L2 nodes

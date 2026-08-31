@@ -62,6 +62,19 @@ describe('buildSequenceSvg', () => {
     expect(highlighted).toHaveLength(1)
   })
 
+  it("renders highlight: 'red' steps with the highlightRed color", () => {
+    const custom = { ...lightTheme, highlightRed: '#ff00aa' }
+    const cfg: SequenceConfig = {
+      actors: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }],
+      steps: [{ from: 'a', to: 'b', text: 'uh oh', highlight: 'red' }],
+    }
+    const { svg: hsvg } = buildSequenceSvg(cfg, resolveOptions({ theme: custom }))
+    const highlighted = [...hsvg.querySelectorAll('line')].filter(
+      (l) => l.getAttribute('stroke') === '#ff00aa',
+    )
+    expect(highlighted).toHaveLength(1)
+  })
+
   it('renders a note rect', () => {
     const notes = [...svg.querySelectorAll('rect')].filter(
       (r) => r.getAttribute('fill') === lightTheme.noteBackground,

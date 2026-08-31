@@ -121,7 +121,7 @@ sequence(container, {
 | `text` | `string` | yes | Message or note text |
 | `type` | `'request' \| 'response' \| 'note'` | no | Default `'request'`. `response` renders dashed arrow. `note` renders a box over the actor(s) |
 | `over` | `string \| string[]` | yes (note) | Actor id(s) the note spans. Used instead of from/to for notes |
-| `highlight` | `boolean` | no | Highlight this step with accent color |
+| `highlight` | `boolean \| 'red' \| 'green'` | no | Highlight this step with accent color — `true`/`'green'` use the `highlight` token, `'red'` uses `highlightRed` |
 | `failed` | `boolean` | no | Renders an X terminator instead of an arrowhead (parsed from Mermaid `-x` / `--x`) |
 
 #### Actor schema
@@ -193,7 +193,7 @@ flowchart(container, {
 | `id` | `string` | yes | Unique identifier |
 | `text` | `string` | yes | Display text |
 | `shape` | `'rect' \| 'rounded' \| 'diamond' \| 'circle' \| 'stadium'` | no | Default `'rounded'` |
-| `highlight` | `boolean` | no | Accent color for important nodes |
+| `highlight` | `boolean \| 'red' \| 'green'` | no | Accent color for important nodes — `true`/`'green'` use the `highlight` token, `'red'` uses `highlightRed` |
 | `group` | `string` | no | Id of the enclosing subgraph, from `groups` |
 
 #### Edge schema
@@ -274,7 +274,7 @@ stateDiagram(container, {
 | `id` | `string` | yes | Unique identifier |
 | `text` | `string` | yes | Display text |
 | `type` | `'default' \| 'start' \| 'end'` | no | `start` renders a filled circle, `end` renders a circle with inner dot |
-| `highlight` | `boolean \| 'red' \| 'green'` | no | Accent color |
+| `highlight` | `boolean \| 'red' \| 'green'` | no | Accent color — `true`/`'green'` use the `highlight` token, `'red'` uses `highlightRed` |
 | `group` | `string` | no | Id of the enclosing composite state, from `groups` |
 
 #### Transition schema
@@ -310,7 +310,7 @@ All diagram types accept an `options` object (second argument for `render()`, or
 
 ```typescript
 interface DiagramOptions {
-  theme?: 'light' | 'dark' | 'auto' | ThemeTokens
+  theme?: 'light' | 'dark' | 'auto' | Partial<ThemeTokens>
   animate?: boolean
   trigger?: 'onScroll' | 'immediate' | 'manual'
   advance?: 'auto' | 'click'
@@ -329,7 +329,7 @@ interface DiagramOptions {
 
 | Option | Type | Default | Description |
 | ------ | ---- | ------- | ----------- |
-| `theme` | `'light' \| 'dark' \| 'auto' \| ThemeTokens` | `'auto'` | `'auto'` reads `prefers-color-scheme`. Pass a `ThemeTokens` object for custom colors |
+| `theme` | `'light' \| 'dark' \| 'auto' \| Partial<ThemeTokens>` | `'auto'` | `'auto'` reads `prefers-color-scheme`. Pass a full or partial `ThemeTokens` object for custom colors — see [Theme tokens](#theme-tokens) |
 | `animate` | `boolean` | `true` | Set `false` to render final state immediately |
 | `trigger` | `'onScroll' \| 'immediate' \| 'manual'` | `'onScroll'` | When to start animation |
 | `advance` | `'auto' \| 'click'` | `'auto'` | Advance steps on click instead of a timer; on flowcharts, click a revealed node to expand its branches |
@@ -381,6 +381,17 @@ Built-in themes:
 | `highlight` | `#10b981` | `#34d399` |
 | `highlightRed` | `#ef4444` | `#f87171` |
 | `lifeline` | `rgba(99,102,241,0.3)` | `rgba(99,102,241,0.3)` |
+
+You can pass a **partial** object — only the tokens you want to override. Unspecified tokens fall
+back to the auto-resolved built-in theme (the same light/dark pick `theme: 'auto'` makes), so a
+partial theme still adapts to `prefers-color-scheme` for anything you didn't set:
+
+```typescript
+render(el, source, { theme: { highlight: '#f59e0b' } }) // only the highlight accent changes
+```
+
+A **full** `ThemeTokens` object (every token specified) is used exactly as given, with no merging —
+the same behavior as before partial themes were supported.
 
 ### Trigger modes
 

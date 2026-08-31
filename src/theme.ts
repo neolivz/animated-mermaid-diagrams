@@ -1,4 +1,4 @@
-import type { DiagramOptions, ResolvedOptions, ThemeTokens } from './types'
+import type { DiagramOptions, Highlight, ResolvedOptions, ThemeTokens } from './types'
 
 export const lightTheme: ThemeTokens = {
   background: '#ffffff',
@@ -30,13 +30,37 @@ export const darkTheme: ThemeTokens = {
   lifeline: 'rgba(99,102,241,0.3)',
 }
 
-export function resolveTheme(theme: DiagramOptions['theme']): ThemeTokens {
-  if (theme && typeof theme === 'object') return theme
-  if (theme === 'light') return lightTheme
-  if (theme === 'dark') return darkTheme
+function autoTheme(): ThemeTokens {
   const prefersDark =
     typeof matchMedia !== 'undefined' && matchMedia('(prefers-color-scheme: dark)').matches
   return prefersDark ? darkTheme : lightTheme
+}
+
+const THEME_KEYS: (keyof ThemeTokens)[] = [
+  'background', 'text', 'textSecondary', 'line', 'lineResponse',
+  'nodeBackground', 'nodeBorder', 'noteBackground', 'noteBorder',
+  'highlight', 'highlightRed', 'lifeline',
+]
+
+export function resolveTheme(theme: DiagramOptions['theme']): ThemeTokens {
+  if (theme && typeof theme === 'object') {
+    // A full ThemeTokens object is used exactly as given (same object, same
+    // reference) — unchanged from before. A partial object merges over the
+    // auto-resolved built-in theme, so unspecified tokens keep light/dark
+    // adaptivity instead of silently going undefined.
+    const isComplete = THEME_KEYS.every((k) => theme[k] !== undefined)
+    return isComplete ? (theme as ThemeTokens) : { ...autoTheme(), ...theme }
+  }
+  if (theme === 'light') return lightTheme
+  if (theme === 'dark') return darkTheme
+  return autoTheme()
+}
+
+/** Shared highlight→color resolver for sequence/flowchart/state renderers.
+ *  Returns undefined when unhighlighted, so callers can `?? <normal color>`. */
+export function highlightColor(h: Highlight | undefined, t: ThemeTokens): string | undefined {
+  if (!h) return undefined
+  return h === 'red' ? t.highlightRed : t.highlight
 }
 
 export function resolveOptions(o: DiagramOptions = {}): ResolvedOptions {

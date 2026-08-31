@@ -1,7 +1,7 @@
 import type { AnimStep, AnimTarget } from '../animator'
 import { createDiagram, type ClickTarget } from '../controller'
 import { graphLayout, type PlacedNode } from '../graph-layout'
-import { resolveOptions } from '../theme'
+import { highlightColor, resolveOptions } from '../theme'
 import { arrowHead, el, estimateTextWidth, svgRoot, textEl } from '../svg'
 import type {
   DiagramController,
@@ -31,7 +31,7 @@ function nodeSize(n: FlowNode): { w: number; h: number } {
 }
 
 function nodeShape(n: FlowNode, p: PlacedNode, t: ThemeTokens): SVGElement {
-  const stroke = n.highlight ? t.highlight : t.nodeBorder
+  const stroke = highlightColor(n.highlight, t) ?? t.nodeBorder
   const common = {
     fill: t.nodeBackground,
     stroke,

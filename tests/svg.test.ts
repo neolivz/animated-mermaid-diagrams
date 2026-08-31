@@ -84,4 +84,11 @@ describe('svgRoot', () => {
     expect(svg.getAttribute('width')).toBe('640')
     expect(svg.getAttribute('height')).toBeNull()
   })
+
+  it('a partial theme flows through resolveOptions to the rendered background', () => {
+    const opts = resolveOptions({ theme: { background: '#123456' } })
+    const svg = svgRoot(300, 200, opts, 'x')
+    const bg = svg.firstChild as SVGRectElement
+    expect(bg.getAttribute('fill')).toBe('#123456')
+  })
 })

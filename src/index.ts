@@ -177,6 +177,7 @@ export type {
   DiagramController,
   DiagramConfig,
   DiagramGroup,
+  Highlight,
   ThemeTokens,
   SequenceConfig,
   SequenceActor,
