@@ -292,6 +292,66 @@ describe('createDiagram', () => {
     ctrl.destroy()
   })
 
+  it('keyboard:true ArrowRight animates the step forward (not an instant snap) and fires the offset-adjusted onStepStart; a following Space resumes timed playback', () => {
+    const { container, svg, els, steps } = fixture()
+    const onStepStart = vi.fn()
+    const ctrl = createDiagram(
+      container, svg, steps,
+      resolveOptions({ trigger: 'manual', keyboard: true, onStepStart }),
+      1,
+    )
+    const key = (k: string): void => { svg.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true })) }
+
+    key('ArrowRight') // anim step 0 (intro) — suppressed from the user-facing callback
+    expect(els[0].style.opacity).toBe('')
+    expect(els[1].style.opacity).toBe('0')
+    expect(onStepStart).not.toHaveBeenCalled()
+
+    key('ArrowRight') // anim step 1 → user-facing step 0
+    expect(els[1].style.opacity).toBe('') // exactly one further step revealed
+    expect(els[2].style.opacity).toBe('0')
+    expect(onStepStart).toHaveBeenCalledTimes(1)
+    expect(onStepStart).toHaveBeenCalledWith(0)
+
+    key(' ') // paused-on-step (from stepForward) -> resume() continues timed playback
+    vi.advanceTimersByTime(500)
+    expect(els[2].style.opacity).toBe('') // anim step 2 → user-facing step 1
+    expect(onStepStart).toHaveBeenCalledTimes(2)
+    expect(onStepStart).toHaveBeenCalledWith(1)
+
+    ctrl.destroy()
+  })
+
+  it('keyboard:true ArrowRight calls element.animate() (click-mode parity); ArrowLeft/Home/End do not', () => {
+    const { container, svg, els, steps } = fixture()
+    const animateMock = vi.fn(() => ({
+      cancel: vi.fn(),
+      pause: vi.fn(),
+      play: vi.fn(),
+      playState: 'running',
+    })) as unknown as SVGElement['animate']
+    for (const el of els) (el as unknown as { animate: typeof animateMock }).animate = animateMock
+
+    const ctrl = createDiagram(
+      container, svg, steps,
+      resolveOptions({ trigger: 'manual', keyboard: true }),
+      1,
+    )
+    const key = (k: string): void => { svg.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true })) }
+
+    key('ArrowRight')
+    expect(animateMock).toHaveBeenCalledTimes(1)
+    key('ArrowRight')
+    expect(animateMock).toHaveBeenCalledTimes(2)
+
+    key('ArrowLeft')
+    key('Home')
+    key('End')
+    expect(animateMock).toHaveBeenCalledTimes(2) // unchanged — none of these animate
+
+    ctrl.destroy()
+  })
+
   it('keyboard:true Space toggles idle→play, playing→pause, paused→resume; onStepStart follows stepIndexOffset', () => {
     const { container, svg, els, steps } = fixture()
     const onStepStart = vi.fn()

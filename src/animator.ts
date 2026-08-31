@@ -210,6 +210,23 @@ export class Animator {
     this.nextIndex = Math.max(this.nextIndex, i + 1)
   }
 
+  /** Animate the next unrevealed step and land paused on it (step transport). */
+  stepForward(): void {
+    if (this.destroyed) return
+    this.stopTimers()
+    const i = this.nextIndex
+    if (i >= this.steps.length) return
+    this.opts.onStepStart?.(i)
+    this.running = []
+    for (const t of this.steps[i]) {
+      const a = animateTarget(t, this.opts.stepDuration)
+      if (a) this.running.push(a)
+    }
+    this.nextIndex = i + 1
+    this.isPaused = this.nextIndex < this.steps.length
+    this.remaining = 0
+  }
+
   get stepCount(): number {
     return this.steps.length
   }

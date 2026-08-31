@@ -235,7 +235,11 @@ export function createDiagram(
         case 'ArrowRight':
         case 'ArrowDown':
           ke.preventDefault()
-          applyRawGoToStep(anim.position)
+          // Forward stepping animates (draw/fade in), matching click-to-advance;
+          // backward/jump transport below stays instant since it can't meaningfully
+          // animate. anim.stepForward()'s own onStepStart already syncs aria.
+          anim.stepForward()
+          syncAria()
           break
         case 'ArrowLeft':
         case 'ArrowUp':

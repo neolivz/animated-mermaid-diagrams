@@ -176,4 +176,62 @@ describe('Animator', () => {
     vi.advanceTimersByTime(5000)
     expect(onComplete).not.toHaveBeenCalled()
   })
+
+  it('stepForward() advances one step per call and lands paused; resume() continues to completion', () => {
+    const { steps } = makeSteps()
+    const onStepStart = vi.fn()
+    const onComplete = vi.fn()
+    const a = new Animator(steps, { ...OPTS, onStepStart, onComplete })
+    a.stepForward()
+    expect(onStepStart).toHaveBeenCalledWith(0)
+    expect(onStepStart).toHaveBeenCalledTimes(1)
+    a.stepForward()
+    expect(onStepStart).toHaveBeenCalledWith(1)
+    expect(onStepStart).toHaveBeenCalledTimes(2)
+    // Lands paused: nothing further happens without an explicit resume/step.
+    vi.advanceTimersByTime(5000)
+    expect(onStepStart).toHaveBeenCalledTimes(2)
+    a.resume()
+    vi.advanceTimersByTime(5000)
+    expect(onStepStart).toHaveBeenCalledWith(2)
+    expect(onComplete).toHaveBeenCalledTimes(1)
+  })
+
+  it('stepForward() is a no-op past the end and after destroy', () => {
+    const { steps } = makeSteps()
+    const onStepStart = vi.fn()
+    const a = new Animator(steps, { ...OPTS, onStepStart })
+    a.stepForward()
+    a.stepForward()
+    a.stepForward()
+    expect(onStepStart).toHaveBeenCalledTimes(3)
+    a.stepForward() // already at the end — no-op
+    expect(onStepStart).toHaveBeenCalledTimes(3)
+
+    const b = new Animator(steps, { ...OPTS, onStepStart })
+    b.destroy()
+    b.stepForward()
+    expect(onStepStart).toHaveBeenCalledTimes(3) // unchanged — destroyed
+  })
+
+  it('stepForward() plays a WAAPI animation; goToStep() does not', () => {
+    const animateMock = vi.fn(() => ({
+      cancel: vi.fn(),
+      pause: vi.fn(),
+      play: vi.fn(),
+      playState: 'running',
+    })) as unknown as SVGElement['animate']
+
+    const forward = makeSteps()
+    for (const el of forward.els) (el as unknown as { animate: typeof animateMock }).animate = animateMock
+    const a = new Animator(forward.steps, OPTS)
+    a.stepForward()
+    expect(animateMock).toHaveBeenCalledTimes(1)
+
+    const jump = makeSteps()
+    for (const el of jump.els) (el as unknown as { animate: typeof animateMock }).animate = animateMock
+    const b = new Animator(jump.steps, OPTS)
+    b.goToStep(0)
+    expect(animateMock).toHaveBeenCalledTimes(1) // unchanged — goToStep never calls animate()
+  })
 })
