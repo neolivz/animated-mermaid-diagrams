@@ -84,9 +84,17 @@ describe('buildFlowchartSvg', () => {
     const { svg: tsvg } = buildFlowchartSvg(CONFIG, opts)
     const paths = [...tsvg.querySelectorAll('path')].filter((p) => p.getAttribute('fill') === 'none')
     const heads = [...tsvg.querySelectorAll('polygon')].filter((p) => (p.getAttribute('transform') ?? '').includes('rotate'))
-    const endY = Number((paths[0].getAttribute('d') ?? '').trim().split(/[\s,]+/).pop())
-    const tipY = Number((heads[0].getAttribute('transform') ?? '').match(/translate\([\d.e+-]+,([\d.e+-]+)\)/)![1])
-    expect(tipY - endY).toBeCloseTo(10, 5)
+    // Waypoint-routed paths can arrive at any angle now (not just axis-aligned),
+    // so measure straight-line distance between the path's last point and the
+    // arrowhead's tip instead of a single-axis delta.
+    const d = paths[0].getAttribute('d') ?? ''
+    const nums = d.trim().split(/[\s,]+/).filter((s) => s !== 'M' && s !== 'L' && s !== 'Q').map(Number)
+    const endX = nums[nums.length - 2]
+    const endY = nums[nums.length - 1]
+    const m = (heads[0].getAttribute('transform') ?? '').match(/translate\(([\d.e+-]+),([\d.e+-]+)\)/)!
+    const tipX = Number(m[1])
+    const tipY = Number(m[2])
+    expect(Math.hypot(tipX - endX, tipY - endY)).toBeCloseTo(10, 1)
   })
 })
 
@@ -128,7 +136,9 @@ describe('self-edges and label overflow', () => {
       direction: 'TB',
     }
     const { svg: s, steps: st } = buildFlowchartSvg(cfg, opts)
-    const curves = [...s.querySelectorAll('path')].filter((p) => (p.getAttribute('d') ?? '').includes('C'))
+    // dagre may route a short a→b edge as a plain 2-point line (no 'C'), so
+    // count all connecting paths rather than filtering for a curve command.
+    const curves = [...s.querySelectorAll('path')].filter((p) => p.getAttribute('fill') === 'none')
     expect(curves).toHaveLength(2) // self-loop + normal edge
     expect([...s.querySelectorAll('text')].map((t) => t.textContent)).toContain('again')
     // self-loop animates in the final (back-edge) step
@@ -148,24 +158,47 @@ describe('self-edges and label overflow', () => {
   })
 })
 
-describe('multi-tier and bidirectional edge routing', () => {
-  it('routes multi-tier edges around intermediate rows via a side apex', () => {
+describe('multi-tier and bidirectional edge routing (dagre)', () => {
+  it('routes a multi-tier edge around the intermediate node instead of through its box', () => {
     const cfg: FlowchartConfig = {
       nodes: [{ id: 'a', text: 'A' }, { id: 'b', text: 'B' }, { id: 'c', text: 'C' }],
       edges: [
         { from: 'a', to: 'b' },
         { from: 'b', to: 'c' },
-        { from: 'a', to: 'c' }, // spans 2 layers
+        { from: 'a', to: 'c' }, // spans 2 layers, routes around b
       ],
       direction: 'TB',
     }
     const { svg: rsvg } = buildFlowchartSvg(cfg, opts)
     const paths = [...rsvg.querySelectorAll('path')].filter((p) => p.getAttribute('fill') === 'none')
     const long = paths[2].getAttribute('d')! // third edge, appended in config order
-    expect(long.match(/C/g)).toHaveLength(2) // two-segment side route
+    const nums = long
+      .trim()
+      .split(/[\s,]+/)
+      .filter((s) => s !== 'M' && s !== 'L' && s !== 'Q')
+      .map(Number)
+    const points: { x: number; y: number }[] = []
+    for (let i = 0; i < nums.length; i += 2) points.push({ x: nums[i], y: nums[i + 1] })
+
+    // Locate b's box by content rather than DOM order.
+    const boxOf = (label: string): { x: number; y: number; w: number; h: number } => {
+      const text = [...rsvg.querySelectorAll('text')].find((t) => t.textContent === label)!
+      const r = text.previousElementSibling as SVGRectElement
+      return {
+        x: +r.getAttribute('x')!,
+        y: +r.getAttribute('y')!,
+        w: +r.getAttribute('width')!,
+        h: +r.getAttribute('height')!,
+      }
+    }
+    const b = boxOf('B')
+    for (const p of points) {
+      const inside = p.x > b.x && p.x < b.x + b.w && p.y > b.y && p.y < b.y + b.h
+      expect(inside).toBe(false)
+    }
   })
 
-  it('bows bidirectional edge pairs apart', () => {
+  it('routes a bidirectional edge pair as visually distinct paths', () => {
     const cfg: FlowchartConfig = {
       nodes: [{ id: 'a', text: 'A' }, { id: 'b', text: 'B' }],
       edges: [

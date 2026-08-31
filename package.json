@@ -1,7 +1,7 @@
 {
   "name": "animated-mermaid-diagrams",
   "version": "0.1.0",
-  "description": "Drop-in animated rendering for Mermaid diagrams. Zero dependencies.",
+  "description": "Drop-in animated rendering for Mermaid diagrams. One dependency: @dagrejs/dagre (the same layout engine Mermaid uses).",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -47,5 +47,8 @@
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
     "vitest": "^4.1.11"
+  },
+  "dependencies": {
+    "@dagrejs/dagre": "^3.1.1"
   }
 }

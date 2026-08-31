@@ -1,6 +1,6 @@
 import type { AnimStep } from '../animator'
 import { createDiagram } from '../controller'
-import { layeredLayout, type PlacedItem } from '../layered'
+import { graphLayout, type PlacedNode } from '../graph-layout'
 import { resolveOptions } from '../theme'
 import { arrowHead, el, estimateTextWidth, svgRoot, textEl } from '../svg'
 import type {
@@ -18,6 +18,25 @@ const START_ID = '__start'
 // this far short of the border so the line flows into the head, not under it.
 const HEAD_LEN = 10
 
+interface Pt {
+  x: number
+  y: number
+}
+
+// Midpoint-quadratic smoothing over dagre's polyline waypoints — no extra deps.
+function smoothPath(pts: Pt[]): string {
+  if (pts.length < 3) return `M ${pts[0].x} ${pts[0].y} L ${pts[pts.length - 1].x} ${pts[pts.length - 1].y}`
+  let d = `M ${pts[0].x} ${pts[0].y}`
+  for (let i = 1; i < pts.length - 1; i++) {
+    const mx = (pts[i].x + pts[i + 1].x) / 2
+    const my = (pts[i].y + pts[i + 1].y) / 2
+    d += ` Q ${pts[i].x} ${pts[i].y}, ${mx} ${my}`
+  }
+  const last = pts[pts.length - 1]
+  d += ` L ${last.x} ${last.y}`
+  return d
+}
+
 function stateSize(s: StateNode): { w: number; h: number } {
   if (s.type === 'start') return { w: 16, h: 16 }
   if (s.type === 'end') return { w: 22, h: 22 }
@@ -30,7 +49,7 @@ function strokeFor(s: StateNode, t: ThemeTokens): string {
   return t.nodeBorder
 }
 
-function stateGroup(s: StateNode, p: PlacedItem, t: ThemeTokens): SVGGElement {
+function stateGroup(s: StateNode, p: PlacedNode, t: ThemeTokens): SVGGElement {
   const g = el('g')
   const cx = p.x + p.w / 2
   const cy = p.y + p.h / 2
@@ -87,11 +106,16 @@ export function buildStateSvg(
   const layoutStates: StateNode[] = hasStart
     ? [{ id: START_ID, text: '', type: 'start' }, ...config.states]
     : [...config.states]
+  // The start connector is a normal dagre edge like any transition (no label).
   const layoutEdges = [
     ...(hasStart ? [{ from: START_ID, to: config.initial! }] : []),
-    ...config.transitions,
+    ...config.transitions.map((tr) => ({
+      from: tr.from,
+      to: tr.to,
+      ...(tr.label ? { labelW: estimateTextWidth(tr.label, 12) + 12, labelH: 20 } : {}),
+    })),
   ]
-  const layout = layeredLayout(
+  const layout = graphLayout(
     layoutStates.map((s) => ({ id: s.id, ...stateSize(s) })),
     layoutEdges,
     'TB',
@@ -99,7 +123,7 @@ export function buildStateSvg(
   const root = el('g')
   const labelLayer = el('g')
 
-  // Content hanging outside the state layout (label pills, self-loops) grows
+  // Self-loops hang outside the state layout (dagre never sees them) and grow
   // the canvas instead of clipping (same pattern as the flowchart renderer).
   let extraLeft = 0
   let extraRight = 0
@@ -111,10 +135,43 @@ export function buildStateSvg(
 
   const stateById = new Map(layoutStates.map((s) => [s.id, s]))
 
+  // Placed (non-self) edges from graphLayout, in the same relative order as
+  // the start connector (if present) followed by config.transitions.
+  let edgeCursor = 0
+
+  // Start connector (from start dot to initial state) — routed by dagre.
+  let startConnector: AnimStep = []
+  if (hasStart) {
+    const s = layout.nodes.get(START_ID)!
+    const e = layout.nodes.get(config.initial!)
+    if (e) {
+      const placed = layout.edges[edgeCursor++]
+      const pts = placed.points.map((p) => ({ x: p.x, y: p.y }))
+      const tip = pts[pts.length - 1]
+      const prev = pts[pts.length - 2] ?? pts[0]
+      const angle = (Math.atan2(tip.y - prev.y, tip.x - prev.x) * 180) / Math.PI
+      const dx = tip.x - prev.x
+      const dy = tip.y - prev.y
+      const len = Math.hypot(dx, dy) || 1
+      const trimmedEnd = { x: tip.x - (dx / len) * HEAD_LEN, y: tip.y - (dy / len) * HEAD_LEN }
+      const path = el('path', {
+        d: smoothPath([...pts.slice(0, -1), trimmedEnd]),
+        fill: 'none', stroke: t.line, 'stroke-width': 2,
+      })
+      root.appendChild(path)
+      const head = arrowHead(tip.x, tip.y, angle, t.line)
+      root.appendChild(head)
+      startConnector = [
+        { el: path, kind: 'draw' },
+        { el: head, kind: 'fade' },
+      ]
+    }
+  }
+
   // Transition elements (under states).
   const transitionAnims: AnimStep[] = config.transitions.map((tr) => {
-    const s = layout.items.get(tr.from)
-    const e = layout.items.get(tr.to)
+    const s = layout.nodes.get(tr.from)
+    const e = layout.nodes.get(tr.to)
     const anim: AnimStep = []
     if (!s || !e) return anim
     if (tr.from === tr.to) {
@@ -143,69 +200,29 @@ export function buildStateSvg(
       }
       return anim
     }
-    const down = e.y >= s.y + s.h
-    const x1 = s.x + s.w / 2
-    const y1 = down ? s.y + s.h : s.y
-    const x2 = e.x + e.w / 2
-    const y2 = down ? e.y : e.y + e.h
-    const mid = (y2 - y1) / 2
-    // Bow bidirectional pairs to opposite sides so their curves and labels
-    // don't render on top of each other (e.g. failure / retry()).
-    const hasReverse = config.transitions.some(
-      (o) => o !== tr && o.from === tr.to && o.to === tr.from,
-    )
-    let bow = hasReverse ? (tr.from < tr.to ? 28 : -28) : 0
-    const labelDy = hasReverse ? (tr.from < tr.to ? -8 : 8) : 0
-    // Long edges pass an intermediate row: park the label near the source end
-    // (t=0.25) so it lands in a row gap instead of on a box.
-    const layerSpan = Math.abs(e.layer - s.layer)
-    const t01 = layerSpan > 1 ? 0.25 : 0.5
-    // Stagger labels of same-source fan-outs so adjacent pills don't collide.
-    const fan = config.transitions.filter((o) => o.from === tr.from && o.from !== o.to)
-    const fanIdx = fan.indexOf(tr)
-    const fanDy = fanIdx <= 0 ? 0 : fanIdx % 2 === 1 ? 14 : -14
-    // Stop the path at the arrowhead's base so the line flows into the arrow,
-    // not underneath it into the box (head length = HEAD_LEN); head stays at (x2, y2).
-    const endY = down ? y2 - HEAD_LEN : y2 + HEAD_LEN
-    if (layerSpan > 1) {
-      // Route around intermediate rows instead of through them.
-      const side = (x1 + x2) / 2 <= layout.width / 2 ? -1 : 1
-      bow += side * (44 + 6 * layerSpan)
-    }
 
-    let d: string
-    let mx: number
-    let my: number
-    if (layerSpan > 1) {
-      // Two-segment cubic through a side apex, both end tangents axis-aligned
-      // (so the arrowhead stays tangent-correct) — routes around intermediate
-      // rows instead of drawing straight through them.
-      const apexX = (x1 + x2) / 2 + bow
-      const midY = (y1 + endY) / 2
-      const q = Math.abs(endY - y1) * 0.25
-      d =
-        `M ${x1} ${y1} C ${x1} ${y1 + q}, ${apexX} ${midY - q}, ${apexX} ${midY} ` +
-        `C ${apexX} ${midY + q}, ${x2} ${endY - q}, ${x2} ${endY}`
-      trackX(apexX - 10, apexX + 10)
-      // Label sits at the apex — on the path (the joint between the two
-      // segments) and offset sideways clear of the intermediate row(s).
-      mx = apexX
-      my = midY
-    } else {
-      d = `M ${x1} ${y1} C ${x1 + bow} ${y1 + mid}, ${x2 + bow} ${y2 - mid}, ${x2} ${endY}`
-      mx = x1 + (x2 - x1) * t01 + bow
-      my = y1 + (y2 - y1) * t01 + labelDy + fanDy
-    }
+    const placed = layout.edges[edgeCursor++]
+    const pts = placed.points.map((p) => ({ x: p.x, y: p.y }))
+    const tip = pts[pts.length - 1]
+    const prev = pts[pts.length - 2] ?? pts[0]
+    const angle = (Math.atan2(tip.y - prev.y, tip.x - prev.x) * 180) / Math.PI
+    const dx = tip.x - prev.x
+    const dy = tip.y - prev.y
+    const len = Math.hypot(dx, dy) || 1
+    const trimmedEnd = { x: tip.x - (dx / len) * HEAD_LEN, y: tip.y - (dy / len) * HEAD_LEN }
     const path = el('path', {
-      d,
+      d: smoothPath([...pts.slice(0, -1), trimmedEnd]),
       fill: 'none', stroke: t.line, 'stroke-width': 2,
     })
     root.appendChild(path)
     anim.push({ el: path, kind: 'draw' })
-    const head = arrowHead(x2, y2, down ? 90 : 270, t.line)
+    const head = arrowHead(tip.x, tip.y, angle, t.line)
     root.appendChild(head)
     anim.push({ el: head, kind: 'fade' })
     if (tr.label) {
+      const mid = pts[Math.floor(pts.length / 2)]
+      const mx = placed.label?.x ?? mid.x
+      const my = placed.label?.y ?? mid.y
       const lw = estimateTextWidth(tr.label, 12) + 12
       trackX(mx - lw / 2, mx + lw / 2)
       const g = el('g', {}, [
@@ -218,35 +235,9 @@ export function buildStateSvg(
     return anim
   })
 
-  // Start connector (from start dot to initial state).
-  let startConnector: AnimStep = []
-  if (hasStart) {
-    const s = layout.items.get(START_ID)!
-    const e = layout.items.get(config.initial!)
-    if (e) {
-      const x1 = s.x + s.w / 2
-      const y1 = s.y + s.h
-      const x2 = e.x + e.w / 2
-      const y2 = e.y
-      const mid = (y2 - y1) / 2
-      // Start connector always flows downward, so trim HEAD_LEN off the arrival end.
-      const path = el('path', {
-        d: `M ${x1} ${y1} C ${x1} ${y1 + mid}, ${x2} ${y2 - mid}, ${x2} ${y2 - HEAD_LEN}`,
-        fill: 'none', stroke: t.line, 'stroke-width': 2,
-      })
-      root.appendChild(path)
-      const head = arrowHead(x2, y2, 90, t.line)
-      root.appendChild(head)
-      startConnector = [
-        { el: path, kind: 'draw' },
-        { el: head, kind: 'fade' },
-      ]
-    }
-  }
-
   // State groups on top.
   const groupById = new Map<string, SVGGElement>()
-  for (const [id, p] of layout.items) {
+  for (const [id, p] of layout.nodes) {
     const s = stateById.get(id)
     if (!s) continue
     const g = stateGroup(s, p, t)

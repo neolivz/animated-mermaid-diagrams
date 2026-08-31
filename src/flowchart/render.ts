@@ -1,16 +1,20 @@
 import type { AnimStep } from '../animator'
 import { createDiagram } from '../controller'
-import { layeredLayout, type PlacedItem } from '../layered'
+import { graphLayout, type PlacedNode } from '../graph-layout'
 import { resolveOptions } from '../theme'
 import { arrowHead, el, estimateTextWidth, svgRoot, textEl } from '../svg'
 import type {
   DiagramController,
   FlowchartConfig,
   FlowNode,
-  FlowShape,
   ResolvedOptions,
   ThemeTokens,
 } from '../types'
+
+interface Pt {
+  x: number
+  y: number
+}
 
 function nodeSize(n: FlowNode): { w: number; h: number } {
   const tw = estimateTextWidth(n.text)
@@ -26,7 +30,7 @@ function nodeSize(n: FlowNode): { w: number; h: number } {
   }
 }
 
-function nodeShape(n: FlowNode, p: PlacedItem, t: ThemeTokens): SVGElement {
+function nodeShape(n: FlowNode, p: PlacedNode, t: ThemeTokens): SVGElement {
   const stroke = n.highlight ? t.highlight : t.nodeBorder
   const common = {
     fill: t.nodeBackground,
@@ -52,65 +56,45 @@ function nodeShape(n: FlowNode, p: PlacedItem, t: ThemeTokens): SVGElement {
   }
 }
 
-interface EdgeAnchor {
-  x1: number
-  y1: number
-  x2: number
-  y2: number
-  angle: number
+// dagre clips edge endpoints to each node's bounding RECTANGLE. Diamond and
+// circle shapes need a second clip against their real border: cast a ray
+// from the shape's center through the adjacent waypoint and find where it
+// crosses the shape.
+function intersectDiamond(center: Pt, w: number, h: number, from: Pt): Pt {
+  const dx = from.x - center.x
+  const dy = from.y - center.y
+  const r = Math.abs(dx) / (w / 2) + Math.abs(dy) / (h / 2)
+  if (r === 0) return { x: center.x, y: center.y }
+  const t = 1 / r
+  return { x: center.x + dx * t, y: center.y + dy * t }
+}
+
+function intersectCircle(center: Pt, r: number, from: Pt): Pt {
+  const dx = from.x - center.x
+  const dy = from.y - center.y
+  const dist = Math.hypot(dx, dy)
+  if (dist === 0) return { x: center.x, y: center.y }
+  const t = r / dist
+  return { x: center.x + dx * t, y: center.y + dy * t }
+}
+
+// Midpoint-quadratic smoothing over dagre's polyline waypoints — no extra deps.
+function smoothPath(pts: Pt[]): string {
+  if (pts.length < 3) return `M ${pts[0].x} ${pts[0].y} L ${pts[pts.length - 1].x} ${pts[pts.length - 1].y}`
+  let d = `M ${pts[0].x} ${pts[0].y}`
+  for (let i = 1; i < pts.length - 1; i++) {
+    const mx = (pts[i].x + pts[i + 1].x) / 2
+    const my = (pts[i].y + pts[i + 1].y) / 2
+    d += ` Q ${pts[i].x} ${pts[i].y}, ${mx} ${my}`
+  }
+  const last = pts[pts.length - 1]
+  d += ` L ${last.x} ${last.y}`
+  return d
 }
 
 // Arrowhead polygon length (see arrowHead in svg.ts) — edge paths stop this far
 // short of the border so the line flows into the head instead of under it.
 const HEAD_LEN = 10
-
-function anchors(
-  s: PlacedItem,
-  e: PlacedItem,
-  horizontal: boolean,
-  sShape?: FlowShape,
-  eShape?: FlowShape,
-): EdgeAnchor {
-  if (horizontal) {
-    const forward = e.x >= s.x + s.w
-    let { x1, y1, x2, y2, angle } = forward
-      ? { x1: s.x + s.w, y1: s.y + s.h / 2, x2: e.x, y2: e.y + e.h / 2, angle: 0 }
-      : { x1: s.x, y1: s.y + s.h / 2, x2: e.x + e.w, y2: e.y + e.h / 2, angle: 180 }
-    const dy = e.y + e.h / 2 - (s.y + s.h / 2)
-    if (sShape === 'diamond' && dy !== 0) {
-      y1 += Math.sign(dy) * s.h * 0.25
-      x1 += (forward ? -1 : 1) * s.w * 0.25
-    }
-    if (eShape === 'diamond' && dy !== 0) {
-      y2 -= Math.sign(dy) * e.h * 0.25
-      x2 += (forward ? 1 : -1) * e.w * 0.25
-    }
-    return { x1, y1, x2, y2, angle }
-  }
-  const forward = e.y >= s.y + s.h
-  let { x1, y1, x2, y2, angle } = forward
-    ? { x1: s.x + s.w / 2, y1: s.y + s.h, x2: e.x + e.w / 2, y2: e.y, angle: 90 }
-    : { x1: s.x + s.w / 2, y1: s.y, x2: e.x + e.w / 2, y2: e.y + e.h, angle: 270 }
-  const dx = e.x + e.w / 2 - (s.x + s.w / 2)
-  if (sShape === 'diamond' && dx !== 0) {
-    x1 += Math.sign(dx) * s.w * 0.25
-    y1 += (forward ? -1 : 1) * s.h * 0.25
-  }
-  if (eShape === 'diamond' && dx !== 0) {
-    x2 -= Math.sign(dx) * e.w * 0.25
-    y2 += (forward ? 1 : -1) * e.h * 0.25
-  }
-  return { x1, y1, x2, y2, angle }
-}
-
-function edgePath(a: EdgeAnchor, horizontal: boolean): string {
-  if (horizontal) {
-    const mid = (a.x2 - a.x1) / 2
-    return `M ${a.x1} ${a.y1} C ${a.x1 + mid} ${a.y1}, ${a.x2 - mid} ${a.y2}, ${a.x2} ${a.y2}`
-  }
-  const mid = (a.y2 - a.y1) / 2
-  return `M ${a.x1} ${a.y1} C ${a.x1} ${a.y1 + mid}, ${a.x2} ${a.y2 - mid}, ${a.x2} ${a.y2}`
-}
 
 export function buildFlowchartSvg(
   config: FlowchartConfig,
@@ -119,18 +103,23 @@ export function buildFlowchartSvg(
   const t = opts.theme
   const direction = config.direction ?? 'TB'
   const horizontal = direction === 'LR' || direction === 'RL'
-  const layout = layeredLayout(
+  const nodeById = new Map(config.nodes.map((n) => [n.id, n]))
+  const layout = graphLayout(
     config.nodes.map((n) => ({ id: n.id, ...nodeSize(n) })),
-    config.edges,
+    config.edges.map((edge) => ({
+      from: edge.from,
+      to: edge.to,
+      ...(edge.label
+        ? { labelW: estimateTextWidth(edge.label, 12) + 12, labelH: 20 }
+        : {}),
+    })),
     direction,
   )
-  const nodeById = new Map(config.nodes.map((n) => [n.id, n]))
   const root = el('g')
   const labelLayer = el('g')
 
-  // Content hanging outside the node layout (label pills, self-loops, bowed
-  // multi-tier routes) grows the canvas instead of clipping; the content group
-  // shifts by extraLeft/extraTop.
+  // Self-loops hang outside the node layout (dagre never sees them) and grow
+  // the canvas instead of clipping; the content group shifts by extraLeft/extraTop.
   let extraLeft = 0
   let extraRight = 0
   let extraTop = 0
@@ -139,16 +128,13 @@ export function buildFlowchartSvg(
     extraLeft = Math.max(extraLeft, -x1)
     extraRight = Math.max(extraRight, x2 - layout.width)
   }
-  const trackY = (y1: number, y2: number): void => {
-    extraTop = Math.max(extraTop, -y1)
-    extraBottom = Math.max(extraBottom, y2 - layout.height)
-  }
 
   // Edge elements first (paths render under nodes).
   const edgeTargets: { anim: AnimStep; targetLayer: number; sourceLayer: number }[] = []
+  let edgeCursor = 0
   for (const edge of config.edges) {
-    const s = layout.items.get(edge.from)
-    const e = layout.items.get(edge.to)
+    const s = layout.nodes.get(edge.from)
+    const e = layout.nodes.get(edge.to)
     if (!s || !e) continue
     const dashAttr: Record<string, string> =
       edge.type === 'dashed' ? { 'stroke-dasharray': '6 4' } : {}
@@ -202,72 +188,46 @@ export function buildFlowchartSvg(
       continue
     }
 
-    const a = anchors(s, e, horizontal, nodeById.get(edge.from)?.shape, nodeById.get(edge.to)?.shape)
-    // Stop the path at the arrowhead's base so the line flows into the arrow,
-    // not underneath it into the box (head length = 10).
-    const trimmed: EdgeAnchor = { ...a }
-    if (horizontal) trimmed.x2 += a.angle === 0 ? -HEAD_LEN : HEAD_LEN
-    else trimmed.y2 += a.angle === 90 ? -HEAD_LEN : HEAD_LEN
-
-    const layerSpan = Math.abs(e.layer - s.layer)
-    const hasReverse = config.edges.some(
-      (o) => o !== edge && o.from === edge.to && o.to === edge.from,
-    )
-    let bow = 0
-    if (hasReverse) bow += edge.from < edge.to ? 28 : -28
-    if (layerSpan > 1) {
-      // Route around intermediate rows instead of through them.
-      const mid = horizontal ? (a.y1 + a.y2) / 2 : (a.x1 + a.x2) / 2
-      const side = mid <= (horizontal ? layout.height : layout.width) / 2 ? -1 : 1
-      bow += side * (56 + 6 * layerSpan)
+    const placed = layout.edges[edgeCursor++]
+    const pts = placed.points.map((p) => ({ x: p.x, y: p.y }))
+    if (pts.length >= 2) {
+      const sourceShape = nodeById.get(edge.from)?.shape ?? 'rounded'
+      const targetShape = nodeById.get(edge.to)?.shape ?? 'rounded'
+      const sourceCenter = { x: s.x + s.w / 2, y: s.y + s.h / 2 }
+      const targetCenter = { x: e.x + e.w / 2, y: e.y + e.h / 2 }
+      let first = pts[0]
+      let last = pts[pts.length - 1]
+      if (sourceShape === 'diamond') first = intersectDiamond(sourceCenter, s.w, s.h, pts[1])
+      else if (sourceShape === 'circle') first = intersectCircle(sourceCenter, s.w / 2, pts[1])
+      if (targetShape === 'diamond') last = intersectDiamond(targetCenter, e.w, e.h, pts[pts.length - 2])
+      else if (targetShape === 'circle') last = intersectCircle(targetCenter, e.w / 2, pts[pts.length - 2])
+      pts[0] = first
+      pts[pts.length - 1] = last
     }
 
-    let d: string
-    let mx: number
-    let my: number
-    if (bow !== 0) {
-      // Two-segment cubic through a side apex, both end tangents axis-aligned
-      // (so arrowheads stay tangent-correct) — routes around intermediate rows
-      // and separates bidirectional pairs instead of overlapping/underlapping.
-      if (horizontal) {
-        const midX = (a.x1 + trimmed.x2) / 2
-        const apexY = (a.y1 + a.y2) / 2 + bow
-        const q = Math.abs(trimmed.x2 - a.x1) * 0.25
-        d =
-          `M ${a.x1} ${a.y1} C ${a.x1 + q} ${a.y1}, ${midX - q} ${apexY}, ${midX} ${apexY} ` +
-          `C ${midX + q} ${apexY}, ${trimmed.x2 - q} ${a.y2}, ${trimmed.x2} ${a.y2}`
-        trackY(apexY - 10, apexY + 10)
-        mx = midX
-        my = apexY
-      } else {
-        const midY = (a.y1 + trimmed.y2) / 2
-        const apexX = (a.x1 + a.x2) / 2 + bow
-        const q = Math.abs(trimmed.y2 - a.y1) * 0.25
-        d =
-          `M ${a.x1} ${a.y1} C ${a.x1} ${a.y1 + q}, ${apexX} ${midY - q}, ${apexX} ${midY} ` +
-          `C ${apexX} ${midY + q}, ${a.x2} ${trimmed.y2 - q}, ${a.x2} ${trimmed.y2}`
-        trackX(apexX - 10, apexX + 10)
-        mx = apexX
-        my = midY
-      }
-    } else {
-      d = edgePath(trimmed, horizontal)
-      mx = (a.x1 + a.x2) / 2
-      my = (a.y1 + a.y2) / 2
-    }
+    const tip = pts[pts.length - 1]
+    const prev = pts[pts.length - 2] ?? pts[0]
+    const angle = (Math.atan2(tip.y - prev.y, tip.x - prev.x) * 180) / Math.PI
+    const dx = tip.x - prev.x
+    const dy = tip.y - prev.y
+    const len = Math.hypot(dx, dy) || 1
+    const trimmedEnd = { x: tip.x - (dx / len) * HEAD_LEN, y: tip.y - (dy / len) * HEAD_LEN }
+    const pathPts = [...pts.slice(0, -1), trimmedEnd]
 
     const path = el('path', {
-      d,
+      d: smoothPath(pathPts),
       fill: 'none', stroke: t.line, 'stroke-width': 2, ...dashAttr,
     })
     root.appendChild(path)
     anim.push({ el: path, kind: drawKind })
-    const head = arrowHead(a.x2, a.y2, a.angle, t.line)
+    const head = arrowHead(tip.x, tip.y, angle, t.line)
     root.appendChild(head)
     anim.push({ el: head, kind: 'fade' })
     if (edge.label) {
+      const mid = pts[Math.floor(pts.length / 2)]
+      const mx = placed.label?.x ?? mid.x
+      const my = placed.label?.y ?? mid.y
       const lw = estimateTextWidth(edge.label, 12) + 12
-      trackX(mx - lw / 2, mx + lw / 2)
       const g = el('g', {}, [
         el('rect', { x: mx - lw / 2, y: my - 10, width: lw, height: 20, rx: 4, fill: t.background }),
         textEl(mx, my, edge.label, { color: t.textSecondary, size: 12 }),
@@ -275,12 +235,12 @@ export function buildFlowchartSvg(
       labelLayer.appendChild(g)
       anim.push({ el: g, kind: 'fade' })
     }
-    edgeTargets.push({ anim, targetLayer: e.layer, sourceLayer: s.layer })
+    edgeTargets.push({ anim, targetLayer: placed.targetLayer, sourceLayer: placed.sourceLayer })
   }
 
   // Node groups on top.
   const nodeAnimByLayer: AnimStep[] = layout.layers.map(() => [])
-  for (const [id, p] of layout.items) {
+  for (const [id, p] of layout.nodes) {
     const n = nodeById.get(id)
     if (!n) continue
     const g = el('g', {}, [nodeShape(n, p, t)])

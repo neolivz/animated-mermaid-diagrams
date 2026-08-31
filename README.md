@@ -1,6 +1,6 @@
 # animated-mermaid-diagrams
 
-Drop-in animated rendering for Mermaid diagrams. Accepts Mermaid syntax or a JS config, renders animated SVGs that auto-play on scroll. Zero dependencies.
+Drop-in animated rendering for Mermaid diagrams. Accepts Mermaid syntax or a JS config, renders animated SVGs that auto-play on scroll. One dependency: [`@dagrejs/dagre`](https://github.com/dagrejs/dagre) — the same layout engine Mermaid uses.
 
 ## Install
 
@@ -201,7 +201,7 @@ flowchart(container, {
 
 #### Animation behaviour
 
-- Auto-layout: layered layout (Sugiyama-style) based on edge relationships
+- Auto-layout: dagre layout — the same engine Mermaid uses
 - Edges rendered as SVG paths with arrowhead markers
 - Nodes fade/scale in layer by layer, then edges draw themselves to connect them
 - Diamond nodes render as true diamonds with text centered
@@ -471,10 +471,10 @@ sequenceDiagram
 ## Build and Package
 
 - TypeScript source, ships ESM + CJS + a browser global build
-- Zero runtime dependencies
-- Tree-shakeable: `import { sequence }` only pulls in the sequence renderer
+- One dependency: [`@dagrejs/dagre`](https://github.com/dagrejs/dagre) (the same layout engine Mermaid uses) — external in the ESM/CJS builds (resolved from `node_modules` like any other dependency), bundled into the browser-global build since it has no module resolution of its own
+- Tree-shakeable: `import { sequence }` only pulls in the sequence renderer (ESM/CJS builds only — dagre is still a separate resolved import)
 - Browser global: `window.AnimatedMermaidDiagrams` via `dist/animated-mermaid-diagrams.umd.js` (an IIFE build for `<script>` tags; it does not register with AMD/CommonJS loaders)
-- Bundle size: ~9.4KB gzipped (all diagram types) — budget < 20KB
+- Bundle size: ~26.2KB gzipped for the browser-global build (all diagram types, dagre included) — most of that is dagre itself; the ESM/CJS builds are far smaller since dagre stays an external import there
 - Mermaid parser is a lightweight subset parser — does NOT depend on the mermaid package
 
 ## Accessibility

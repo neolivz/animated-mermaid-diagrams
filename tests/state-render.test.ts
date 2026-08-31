@@ -155,11 +155,18 @@ describe('buildStateSvg', () => {
     expect(overlap).toBe(false)
   })
 
-  it('staggers labels of same-source fan-outs', () => {
+  it('places same-source fan-out labels at distinct positions (dagre routes each edge separately)', () => {
+    // Previously a manual fanDy offset staggered same-y labels apart; dagre
+    // now gives 'success' (loading→ready) and 'failure' (loading→error) each
+    // their own edge route, so their label centers land at different x even
+    // though both sit at the same rank midpoint y — assert the full position
+    // differs rather than assuming which axis dagre will vary.
     const { svg: zsvg } = buildStateSvg(CONFIG, opts)
-    const yOf = (label: string): string | null =>
-      [...zsvg.querySelectorAll('text')].find((n) => n.textContent === label)!.getAttribute('y')
-    expect(yOf('success')).not.toBe(yOf('failure'))
+    const posOf = (label: string): string => {
+      const t = [...zsvg.querySelectorAll('text')].find((n) => n.textContent === label)!
+      return `${t.getAttribute('x')},${t.getAttribute('y')}`
+    }
+    expect(posOf('success')).not.toBe(posOf('failure'))
   })
 
   it('transition paths terminate at the arrowhead base', () => {
