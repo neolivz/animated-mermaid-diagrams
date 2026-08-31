@@ -132,6 +132,13 @@ describe('buildStateSvg', () => {
     const { steps: st } = buildStateSvg(cfg, opts)
     for (const step of st) expect(step.length).toBeGreaterThan(0)
   })
+
+  it('renders transition labels above state boxes (label layer last)', () => {
+    const { svg: zsvg } = buildStateSvg(CONFIG, opts)
+    const root = zsvg.querySelector('g')!
+    const last = root.lastElementChild!
+    expect([...last.querySelectorAll('text')].map((t) => t.textContent)).toContain('fetch()')
+  })
 })
 
 describe('stateDiagram()', () => {

@@ -61,6 +61,13 @@ describe('buildFlowchartSvg', () => {
   it('sets an aria-label', () => {
     expect(svg.getAttribute('aria-label')).toContain('Flowchart')
   })
+
+  it('renders edge labels above node boxes (label layer last)', () => {
+    const { svg: zsvg } = buildFlowchartSvg(CONFIG, opts)
+    const root = zsvg.querySelector('g')!
+    const last = root.lastElementChild!
+    expect([...last.querySelectorAll('text')].map((t) => t.textContent)).toContain('yes')
+  })
 })
 
 describe('LR direction', () => {

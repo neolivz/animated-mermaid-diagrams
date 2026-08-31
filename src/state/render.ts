@@ -93,6 +93,7 @@ export function buildStateSvg(
     'TB',
   )
   const root = el('g')
+  const labelLayer = el('g')
 
   // Content hanging outside the state layout (label pills, self-loops) grows
   // the canvas instead of clipping (same pattern as the flowchart renderer).
@@ -128,7 +129,7 @@ export function buildStateSvg(
       trackX(cx - 44, cx + 44)
       if (tr.label) {
         const txt = textEl(cx, s.y - 34, tr.label, { color: t.textSecondary, size: 12 })
-        root.appendChild(txt)
+        labelLayer.appendChild(txt)
         anim.push({ el: txt, kind: 'fade' })
         extraTop = Math.max(extraTop, -(s.y - 44))
         trackX(cx - estimateTextWidth(tr.label, 12) / 2, cx + estimateTextWidth(tr.label, 12) / 2)
@@ -166,7 +167,7 @@ export function buildStateSvg(
         el('rect', { x: mx - lw / 2, y: my - 10, width: lw, height: 20, rx: 4, fill: t.background }),
         textEl(mx, my, tr.label, { color: t.textSecondary, size: 12 }),
       ])
-      root.appendChild(g)
+      labelLayer.appendChild(g)
       anim.push({ el: g, kind: 'fade' })
     }
     return anim
@@ -206,6 +207,7 @@ export function buildStateSvg(
     root.appendChild(g)
     groupById.set(id, g)
   }
+  root.appendChild(labelLayer)
 
   // Anim steps: intro (start dot + connector + initial state), then BFS transitions.
   const steps: AnimStep[] = []

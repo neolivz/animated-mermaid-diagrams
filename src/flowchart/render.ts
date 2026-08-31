@@ -95,6 +95,7 @@ export function buildFlowchartSvg(
   )
   const nodeById = new Map(config.nodes.map((n) => [n.id, n]))
   const root = el('g')
+  const labelLayer = el('g')
 
   // Content hanging outside the node layout (label pills, self-loops) grows the
   // canvas instead of clipping; the content group shifts right by extraLeft.
@@ -135,7 +136,7 @@ export function buildFlowchartSvg(
         if (edge.label) {
           const lw = estimateTextWidth(edge.label, 12)
           const txt = textEl(cx, by + 44, edge.label, { color: t.textSecondary, size: 12 })
-          root.appendChild(txt)
+          labelLayer.appendChild(txt)
           anim.push({ el: txt, kind: 'fade' })
           extraBottom = Math.max(extraBottom, by + 54 - layout.height)
           trackX(cx - lw / 2, cx + lw / 2)
@@ -155,7 +156,7 @@ export function buildFlowchartSvg(
         trackX(s.x, rx + 40)
         if (edge.label) {
           const txt = textEl(rx + 44, cy, edge.label, { color: t.textSecondary, size: 12, anchor: 'start' })
-          root.appendChild(txt)
+          labelLayer.appendChild(txt)
           anim.push({ el: txt, kind: 'fade' })
           trackX(s.x, rx + 44 + estimateTextWidth(edge.label, 12) + 6)
         }
@@ -183,7 +184,7 @@ export function buildFlowchartSvg(
         el('rect', { x: mx - lw / 2, y: my - 10, width: lw, height: 20, rx: 4, fill: t.background }),
         textEl(mx, my, edge.label, { color: t.textSecondary, size: 12 }),
       ])
-      root.appendChild(g)
+      labelLayer.appendChild(g)
       anim.push({ el: g, kind: 'fade' })
     }
     edgeTargets.push({ anim, targetLayer: e.layer, sourceLayer: s.layer })
@@ -199,6 +200,7 @@ export function buildFlowchartSvg(
     root.appendChild(g)
     nodeAnimByLayer[p.layer].push({ el: g, kind: 'scale' })
   }
+  root.appendChild(labelLayer)
 
   // Interleave: L0 nodes, edges→L1, L1 nodes, ...; back/self-edges last.
   const steps: AnimStep[] = []
