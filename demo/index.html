@@ -352,7 +352,7 @@
         </div>
         <p class="how">Click a lit node (or focus it and press Enter) to open its branches. Nothing runs on a timer.</p>
         <div class="panel"><div id="flow-click"></div></div>
-        <details class="src"><summary>source</summary><pre><code id="src-04"></code></pre><div class="src-note">rendered with { advance: 'click', trigger: 'immediate' }</div></details>
+        <details class="src"><summary>source</summary><pre><code id="src-04"></code></pre></details>
       </section>
 
       <section id="fig-05">
@@ -362,7 +362,7 @@
         </div>
         <p class="how">Click the diagram to advance one message at a time.</p>
         <div class="panel"><div id="seq-click"></div></div>
-        <details class="src"><summary>source</summary><pre><code id="src-05"></code></pre><div class="src-note">rendered with { advance: 'click', trigger: 'immediate' }</div></details>
+        <details class="src"><summary>source</summary><pre><code id="src-05"></code></pre></details>
       </section>
 
       <section id="fig-06">
@@ -561,16 +561,29 @@ flowchart LR
     render(document.getElementById('state-composite'), CHARTS.state_composite)
 
     // FIG. 07
-    // Source blocks mirror exactly what was rendered
+    // Source blocks show the complete, runnable call for what was rendered
     const dedent = (t) => {
       const lines = t.replace(/^\n+|\s+$/g, '').split('\n')
       const indent = Math.min(...lines.filter((l) => l.trim()).map((l) => l.match(/^\s*/)[0].length))
-      return lines.map((l) => l.slice(indent)).join('\n')
+      return lines.map((l) => '  ' + l.slice(indent)).join('\n')
     }
-    const SRC = { '00': 'seq_tiers', '01': 'seq', '02': 'flow', '04': 'flow_click', '05': 'seq_click', '06': 'state_composite' }
-    for (const [num, key] of Object.entries(SRC)) {
+    const renderCall = (key, optionsText) =>
+      'const { render } = AnimatedMermaidDiagrams\n\n' +
+      'render(container, `\n' + dedent(CHARTS[key]) + '\n`' + (optionsText ? ', ' + optionsText : '') + ')'
+    const SRC = {
+      '00': renderCall('seq_tiers', `{
+  onStepStart: (i) => counter.textContent = 'step ' + (i + 1),
+  onComplete: () => counter.textContent = 'complete',
+}`),
+      '01': renderCall('seq'),
+      '02': renderCall('flow'),
+      '04': renderCall('flow_click', "{ advance: 'click', trigger: 'immediate' }"),
+      '05': renderCall('seq_click', "{ advance: 'click', trigger: 'immediate' }"),
+      '06': renderCall('state_composite'),
+    }
+    for (const [num, text] of Object.entries(SRC)) {
       const el = document.getElementById('src-' + num)
-      if (el) el.textContent = dedent(CHARTS[key])
+      if (el) el.textContent = text
     }
 
     init()
