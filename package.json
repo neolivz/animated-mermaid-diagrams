@@ -58,5 +58,10 @@
   "homepage": "https://github.com/neolivz/animated-mermaid-diagrams#readme",
   "bugs": {
     "url": "https://github.com/neolivz/animated-mermaid-diagrams/issues"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public",
+    "provenance": false
   }
 }
