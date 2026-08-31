@@ -34,7 +34,7 @@ describe('parseState', () => {
   it('supports transitions without labels', () => {
     const c = parseState('stateDiagram-v2\nA --> B')
     expect(c.transitions[0]).toEqual({ from: 'A', to: 'B' })
-    expect(c.initial).toBe('A')
+    expect(c.initial).toBeUndefined()
   })
 
   it('flattens composite state blocks, ignoring the grouping', () => {
@@ -69,9 +69,9 @@ describe('parseState', () => {
     expect(c.initial).toBe('B')
   })
 
-  it('initial fallback skips orphan declared states', () => {
+  it('leaves initial undefined when no [*] entry is declared', () => {
     const c = parseState('stateDiagram-v2\nstate "Waiting" as w\nA --> B')
-    expect(c.initial).toBe('A')
+    expect(c.initial).toBeUndefined()
   })
 
   it('multiple finals share one end state', () => {

@@ -60,6 +60,7 @@ describe('buildFlowchartSvg', () => {
 
   it('sets an aria-label', () => {
     expect(svg.getAttribute('aria-label')).toContain('Flowchart')
+    expect(svg.getAttribute('aria-label')).toContain('Navigate')
   })
 
   it('renders edge labels above node boxes (label layer last)', () => {

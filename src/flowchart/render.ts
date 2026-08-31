@@ -220,7 +220,9 @@ export function buildFlowchartSvg(
   const pad = opts.padding
   const w = layout.width + extraLeft + extraRight + pad * 2
   const h = layout.height + extraBottom + pad * 2
-  const label = `Flowchart with ${config.nodes.length} nodes and ${config.edges.length} edges`
+  const label = `Flowchart with ${config.nodes.length} nodes (${config.nodes
+    .map((n) => n.text)
+    .join(', ')}) and ${config.edges.length} edges`
   const svg = svgRoot(w, h, opts, label)
   root.setAttribute('transform', `translate(${pad + extraLeft},${pad})`)
   svg.appendChild(root)

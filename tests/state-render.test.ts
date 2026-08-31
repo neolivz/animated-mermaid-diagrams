@@ -92,6 +92,7 @@ describe('buildStateSvg', () => {
 
   it('sets an aria-label', () => {
     expect(svg.getAttribute('aria-label')).toContain('State diagram')
+    expect(svg.getAttribute('aria-label')).toContain('Idle')
   })
 
   it('bows bidirectional transition pairs apart', () => {
@@ -159,6 +160,23 @@ describe('buildStateSvg', () => {
     const yOf = (label: string): string | null =>
       [...zsvg.querySelectorAll('text')].find((n) => n.textContent === label)!.getAttribute('y')
     expect(yOf('success')).not.toBe(yOf('failure'))
+  })
+
+  it('draws no start dot when no initial is declared, and BFS starts from the first in-flow state', () => {
+    const cfg: StateConfig = {
+      states: [
+        { id: 'orphan', text: 'Orphan' },
+        { id: 'a', text: 'A' },
+        { id: 'b', text: 'B' },
+      ],
+      transitions: [{ from: 'a', to: 'b', label: 'go' }],
+    }
+    const { svg: s, steps: st } = buildStateSvg(cfg, opts)
+    const dots = [...s.querySelectorAll('circle')].filter(
+      (c) => c.getAttribute('fill') === lightTheme.nodeBorder && c.getAttribute('r') === '7',
+    )
+    expect(dots).toHaveLength(0)
+    expect(st[0].some((t) => t.el.textContent?.includes('A'))).toBe(true)
   })
 })
 

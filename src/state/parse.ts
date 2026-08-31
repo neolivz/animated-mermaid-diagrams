@@ -65,11 +65,10 @@ export function parseState(text: string): StateConfig {
   }
 
   const config: StateConfig = { type: 'state', states, transitions }
-  // Fallback: first state that participates in a transition (an orphan declared
-  // via `state "..." as x` should not hijack the flow's entry point).
-  const firstInFlow = states.find((s) =>
-    transitions.some((tr) => tr.from === s.id || tr.to === s.id),
-  )
-  config.initial = initial ?? firstInFlow?.id ?? states[0]?.id
+  // Only set `initial` when the source explicitly declared an entry point
+  // ([*] --> X). Without one, Mermaid draws no start dot, so we shouldn't
+  // synthesize an entry either — the renderer picks its own BFS starting
+  // point (first in-flow state) when this is left undefined.
+  config.initial = initial
   return config
 }

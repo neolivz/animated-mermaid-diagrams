@@ -225,7 +225,14 @@ export function buildStateSvg(
     intro.push({ el: groupById.get(START_ID)!, kind: 'scale' }, ...startConnector)
     shown.add(START_ID)
   }
-  const firstState = config.initial ?? config.states[0]?.id
+  // BFS entry when no explicit initial: first state participating in a
+  // transition (an orphan declared state should not hijack the reveal order).
+  const firstState =
+    config.initial ??
+    config.states.find((s) =>
+      config.transitions.some((tr) => tr.from === s.id || tr.to === s.id),
+    )?.id ??
+    config.states[0]?.id
   if (firstState !== undefined && groupById.has(firstState)) {
     intro.push({ el: groupById.get(firstState)!, kind: 'scale' })
     shown.add(firstState)
@@ -255,7 +262,10 @@ export function buildStateSvg(
   const pad = opts.padding
   const w = layout.width + extraLeft + extraRight + pad * 2
   const h = layout.height + extraTop + pad * 2
-  const label = `State diagram with ${config.states.length} states and ${config.transitions.length} transitions`
+  const label = `State diagram with ${config.states.length} states (${config.states
+    .filter((s) => s.text.length > 0)
+    .map((s) => s.text)
+    .join(', ')}) and ${config.transitions.length} transitions`
   const svg = svgRoot(w, h, opts, label)
   root.setAttribute('transform', `translate(${pad + extraLeft},${pad + extraTop})`)
   svg.appendChild(root)
