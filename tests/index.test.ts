@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { detectType } from '../src/detect'
 import { render, init, sequence, flowchart, stateDiagram } from '../src/index'
 
@@ -96,6 +96,32 @@ A->>B: Hi</pre>
     expect(document.querySelector('pre.other')).not.toBeNull()
     controllers.forEach((c) => c.destroy())
     document.body.innerHTML = ''
+  })
+
+  it('isolates failures: a bad diagram restores its pre and the rest render', () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    document.body.innerHTML = `
+      <pre class="animated-mermaid-diagrams">pie
+"a": 1</pre>
+      <pre class="animated-mermaid-diagrams">sequenceDiagram
+A->>B: Hi</pre>`
+    const controllers = init()
+    expect(controllers).toHaveLength(1)
+    expect(document.querySelectorAll('pre.animated-mermaid-diagrams')).toHaveLength(1) // bad one restored
+    expect(document.querySelector('svg')).not.toBeNull()
+    controllers.forEach((c) => c.destroy())
+    document.body.innerHTML = ''
+    spy.mockRestore()
+  })
+})
+
+describe('render config validation', () => {
+  it('throws a clear error for configs missing required arrays', () => {
+    const container = document.createElement('div')
+    expect(() => render(container, { type: 'sequence', steps: [] } as never)).toThrow(/actors/)
+    expect(() =>
+      render(container, { type: 'flowchart', nodes: [{ id: 'a', text: 'A' }] } as never),
+    ).toThrow(/edges/)
   })
 })
 

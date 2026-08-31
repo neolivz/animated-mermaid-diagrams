@@ -26,14 +26,28 @@ export function render(
     return stateDiagram(container, { ...parseState(input), options })
   }
   const merged = { ...input, options: { ...input.options, ...options } }
+  // Inference priority is deliberate: flowchart (nodes) → state (states) →
+  // sequence (actors). A config carrying multiple shapes should set `type`.
   if (merged.type === 'flowchart' || (merged.type === undefined && 'nodes' in merged)) {
-    return flowchart(container, merged as FlowchartConfig)
+    const cfg = merged as FlowchartConfig
+    if (!Array.isArray(cfg.nodes) || !Array.isArray(cfg.edges)) {
+      throw new Error('Flowchart config requires "nodes" and "edges" arrays')
+    }
+    return flowchart(container, cfg)
   }
   if (merged.type === 'state' || (merged.type === undefined && 'states' in merged)) {
-    return stateDiagram(container, merged as StateConfig)
+    const cfg = merged as StateConfig
+    if (!Array.isArray(cfg.states) || !Array.isArray(cfg.transitions)) {
+      throw new Error('State config requires "states" and "transitions" arrays')
+    }
+    return stateDiagram(container, cfg)
   }
   if (merged.type === 'sequence' || (merged.type === undefined && 'actors' in merged)) {
-    return sequence(container, merged as SequenceConfig)
+    const cfg = merged as SequenceConfig
+    if (!Array.isArray(cfg.actors) || !Array.isArray(cfg.steps)) {
+      throw new Error('Sequence config requires "actors" and "steps" arrays')
+    }
+    return sequence(container, cfg)
   }
   throw new Error('Cannot determine diagram type from config; set the "type" field')
 }
@@ -44,7 +58,14 @@ export function init(root: ParentNode = document): DiagramController[] {
     const source = pre.textContent ?? ''
     const div = document.createElement('div')
     pre.replaceWith(div)
-    controllers.push(render(div, source))
+    try {
+      controllers.push(render(div, source))
+    } catch (err) {
+      // One bad diagram must not break the rest of the page: restore the
+      // original <pre> and keep scanning.
+      div.replaceWith(pre)
+      console.error('[animated-mermaid-diagrams] failed to render diagram:', err)
+    }
   }
   return controllers
 }
