@@ -53,6 +53,20 @@ describe('layeredLayout', () => {
     expect(r.items.size).toBe(2)
   })
 
+  it('groups branch siblings correctly even downstream of a back edge', () => {
+    const items = [box('start'), box('idle'), box('error'), box('ready'), box('loading')]
+    const edges = [
+      { from: 'start', to: 'idle' },
+      { from: 'idle', to: 'loading' },
+      { from: 'loading', to: 'ready' },
+      { from: 'loading', to: 'error' },
+      { from: 'error', to: 'loading' },
+      { from: 'ready', to: 'idle' },
+    ]
+    const r = layeredLayout(items, edges, 'TB')
+    expect(r.layers).toEqual([['start'], ['idle'], ['loading'], ['error', 'ready']])
+  })
+
   it('reports total width and height covering all nodes', () => {
     const r = layeredLayout([box('a'), box('b'), box('c')], [
       { from: 'a', to: 'b' },

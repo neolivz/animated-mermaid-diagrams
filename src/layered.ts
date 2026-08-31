@@ -37,7 +37,10 @@ export function layeredLayout(
   edges: LayeredEdgeIn[],
   direction: FlowDirection,
 ): LayeredResult {
-  // 1) Longest-path ranking via Kahn's algorithm; cycle leftovers appended below.
+  // 1) Longest-path ranking via Kahn's algorithm. When a cycle starves the queue,
+  //    force the lowest-declared already-reached node into its current rank
+  //    (breaking one back edge) and continue, so downstream nodes still group
+  //    by longest path instead of degrading to declaration order.
   const rank = new Map<string, number>()
   const incoming = new Map<string, number>(items.map((i) => [i.id, 0]))
   const out = new Map<string, string[]>(items.map((i) => [i.id, []]))
@@ -46,18 +49,28 @@ export function layeredLayout(
     incoming.set(e.to, (incoming.get(e.to) ?? 0) + 1)
     out.get(e.from)!.push(e.to)
   }
+  const processed = new Set<string>()
   const queue = items.filter((i) => incoming.get(i.id) === 0).map((i) => i.id)
   for (const id of queue) rank.set(id, 0)
-  while (queue.length > 0) {
-    const id = queue.shift()!
+  while (processed.size < items.length) {
+    let id: string | undefined = queue.shift()
+    if (id === undefined) {
+      const stuck =
+        items.find((i) => !processed.has(i.id) && rank.has(i.id)) ??
+        items.find((i) => !processed.has(i.id))!
+      id = stuck.id
+      if (!rank.has(id)) rank.set(id, 0)
+    }
+    if (processed.has(id)) continue
+    processed.add(id)
     for (const next of out.get(id) ?? []) {
+      if (processed.has(next)) continue // back edge into an already-placed node
       rank.set(next, Math.max(rank.get(next) ?? 0, (rank.get(id) ?? 0) + 1))
       incoming.set(next, incoming.get(next)! - 1)
       if (incoming.get(next) === 0) queue.push(next)
     }
   }
-  let maxRank = rank.size > 0 ? Math.max(...rank.values()) : -1
-  for (const i of items) if (!rank.has(i.id)) rank.set(i.id, ++maxRank)
+  const maxRank = rank.size > 0 ? Math.max(...rank.values()) : -1
 
   // 2) Group into layers (dropping any empty ones), reverse for BT/RL.
   const layerCount = maxRank >= 0 ? Math.max(...rank.values()) + 1 : 0
