@@ -176,7 +176,11 @@ export function createDiagram(
       }
     },
     pause: () => anim.pause(),
-    resume: () => anim.resume(),
+    // In click mode, steps advance only via user clicks/keydowns (see reveal()
+    // above) — a stray resume() must not silently start timed auto-playback.
+    resume: () => {
+      if (!clickMode) anim.resume()
+    },
     goToStep: (n) => {
       anim.goToStep(n + stepIndexOffset)
       if (clickMode) {

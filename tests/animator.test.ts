@@ -152,4 +152,28 @@ describe('Animator', () => {
     a.goToStep(-5)
     expect((els[0] as SVGElement).style.opacity).toBe('0')
   })
+
+  it('resume() continues playback after goToStep()', () => {
+    const { steps } = makeSteps()
+    const onStepStart = vi.fn()
+    const onComplete = vi.fn()
+    const a = new Animator(steps, { ...OPTS, onStepStart, onComplete })
+    a.goToStep(0)
+    a.resume()
+    vi.advanceTimersByTime(1)
+    expect(onStepStart).toHaveBeenCalledWith(1)
+    vi.advanceTimersByTime(5000)
+    expect(onStepStart).toHaveBeenCalledWith(2)
+    expect(onComplete).toHaveBeenCalledTimes(1)
+  })
+
+  it('resume() after goToStep past the end is a no-op', () => {
+    const { steps } = makeSteps()
+    const onComplete = vi.fn()
+    const a = new Animator(steps, { ...OPTS, onComplete })
+    a.goToStep(99)
+    a.resume()
+    vi.advanceTimersByTime(5000)
+    expect(onComplete).not.toHaveBeenCalled()
+  })
 })

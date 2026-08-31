@@ -220,4 +220,35 @@ describe('createDiagram', () => {
     vi.advanceTimersByTime(300)
     expect(onStepStart).toHaveBeenCalledTimes(2)
   })
+
+  it('resume() continues playback after goToStep()', () => {
+    const { container, svg, steps } = fixture()
+    const onStepStart = vi.fn()
+    const ctrl = createDiagram(
+      container, svg, steps,
+      resolveOptions({ trigger: 'manual', onStepStart }),
+      1,
+    )
+    // goToStep(0) -> anim.goToStep(0 + offset 1) shows anim steps 0..1, leaving
+    // anim step 2 (user-facing index 2 - offset 1 = 1) as the next one to run.
+    ctrl.goToStep(0)
+    ctrl.resume()
+    vi.advanceTimersByTime(1)
+    expect(onStepStart).toHaveBeenCalledWith(1)
+  })
+
+  it('resume() is a no-op in click mode (never auto-plays after goToStep)', () => {
+    const { container, svg, els, steps } = fixture()
+    const ctrl = createDiagram(
+      container, svg, steps,
+      resolveOptions({ trigger: 'immediate', advance: 'click' }),
+      1,
+    )
+    // goToStep(0) -> anim.goToStep(1) shows anim steps 0..1 (els[0], els[1]);
+    // els[2] (anim step 2) is left hidden.
+    ctrl.goToStep(0)
+    ctrl.resume()
+    vi.advanceTimersByTime(2000)
+    expect(els[2].style.opacity).toBe('0') // still unrevealed — resume did nothing
+  })
 })

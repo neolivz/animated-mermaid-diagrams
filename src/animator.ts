@@ -218,11 +218,13 @@ export class Animator {
   goToStep(n: number): void {
     if (this.destroyed) return
     this.stopTimers()
-    this.isPaused = false
     this.hideAll()
     const upto = Math.max(0, Math.min(n + 1, this.steps.length))
     for (let i = 0; i < upto; i++) for (const t of this.steps[i]) show(t)
     this.nextIndex = upto
+    // Land paused at this step so resume() continues from the next one.
+    this.isPaused = upto < this.steps.length
+    this.remaining = 0
   }
 
   destroy(): void {

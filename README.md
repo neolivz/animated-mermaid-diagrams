@@ -384,7 +384,7 @@ interface DiagramController {
 | `play()` | Start or restart animation from the beginning |
 | `reset()` | Reset to initial state (nothing visible) |
 | `pause()` | Pause mid-animation |
-| `resume()` | Resume from pause |
+| `resume()` | Resume from pause, or continue playback after `goToStep(n)` |
 | `goToStep(n)` | Jump to step n showing all prior steps completed |
 | `destroy()` | Remove SVG, disconnect observers, clean up |
 
