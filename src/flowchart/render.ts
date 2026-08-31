@@ -93,15 +93,18 @@ export function buildFlowchartSvg(
     config.edges,
     direction,
   )
-  const pad = opts.padding
-  const w = layout.width + pad * 2
-  const h = layout.height + pad * 2
-  const label = `Flowchart with ${config.nodes.length} nodes and ${config.edges.length} edges`
-  const svg = svgRoot(w, h, opts, label)
-  const root = el('g', { transform: `translate(${pad},${pad})` })
-  svg.appendChild(root)
-
   const nodeById = new Map(config.nodes.map((n) => [n.id, n]))
+  const root = el('g')
+
+  // Content hanging outside the node layout (label pills, self-loops) grows the
+  // canvas instead of clipping; the content group shifts right by extraLeft.
+  let extraLeft = 0
+  let extraRight = 0
+  let extraBottom = 0
+  const trackX = (x1: number, x2: number): void => {
+    extraLeft = Math.max(extraLeft, -x1)
+    extraRight = Math.max(extraRight, x2 - layout.width)
+  }
 
   // Edge elements first (paths render under nodes).
   const edgeTargets: { anim: AnimStep; targetLayer: number; sourceLayer: number }[] = []
@@ -109,17 +112,65 @@ export function buildFlowchartSvg(
     const s = layout.items.get(edge.from)
     const e = layout.items.get(edge.to)
     if (!s || !e) continue
+    const dashAttr: Record<string, string> =
+      edge.type === 'dashed' ? { 'stroke-dasharray': '6 4' } : {}
+    const drawKind = edge.type === 'dashed' ? ('drawDash' as const) : ('draw' as const)
+    const anim: AnimStep = []
+
+    if (edge.from === edge.to) {
+      // Self-loop: bulge right of the node (below it for horizontal flow).
+      if (horizontal) {
+        const cx = s.x + s.w / 2
+        const by = s.y + s.h
+        const path = el('path', {
+          d: `M ${cx - 8} ${by} C ${cx - 8} ${by + 34}, ${cx + 8} ${by + 34}, ${cx + 8} ${by + 2}`,
+          fill: 'none', stroke: t.line, 'stroke-width': 2, ...dashAttr,
+        })
+        root.appendChild(path)
+        anim.push({ el: path, kind: drawKind })
+        const head = arrowHead(cx + 8, by + 2, 270, t.line)
+        root.appendChild(head)
+        anim.push({ el: head, kind: 'fade' })
+        extraBottom = Math.max(extraBottom, by + 44 - layout.height)
+        if (edge.label) {
+          const lw = estimateTextWidth(edge.label, 12)
+          const txt = textEl(cx, by + 44, edge.label, { color: t.textSecondary, size: 12 })
+          root.appendChild(txt)
+          anim.push({ el: txt, kind: 'fade' })
+          extraBottom = Math.max(extraBottom, by + 54 - layout.height)
+          trackX(cx - lw / 2, cx + lw / 2)
+        }
+      } else {
+        const cy = s.y + s.h / 2
+        const rx = s.x + s.w
+        const path = el('path', {
+          d: `M ${rx} ${cy - 8} C ${rx + 36} ${cy - 8}, ${rx + 36} ${cy + 8}, ${rx + 2} ${cy + 8}`,
+          fill: 'none', stroke: t.line, 'stroke-width': 2, ...dashAttr,
+        })
+        root.appendChild(path)
+        anim.push({ el: path, kind: drawKind })
+        const head = arrowHead(rx + 2, cy + 8, 180, t.line)
+        root.appendChild(head)
+        anim.push({ el: head, kind: 'fade' })
+        trackX(s.x, rx + 40)
+        if (edge.label) {
+          const txt = textEl(rx + 44, cy, edge.label, { color: t.textSecondary, size: 12, anchor: 'start' })
+          root.appendChild(txt)
+          anim.push({ el: txt, kind: 'fade' })
+          trackX(s.x, rx + 44 + estimateTextWidth(edge.label, 12) + 6)
+        }
+      }
+      edgeTargets.push({ anim, targetLayer: e.layer, sourceLayer: s.layer })
+      continue
+    }
+
     const a = anchors(s, e, horizontal)
-    const dashAttr: Record<string, string> = edge.type === 'dashed' ? { 'stroke-dasharray': '6 4' } : {}
     const path = el('path', {
       d: edgePath(a, horizontal),
-      fill: 'none',
-      stroke: t.line,
-      'stroke-width': 2,
-      ...dashAttr,
+      fill: 'none', stroke: t.line, 'stroke-width': 2, ...dashAttr,
     })
     root.appendChild(path)
-    const anim: AnimStep = [{ el: path, kind: edge.type === 'dashed' ? 'drawDash' : 'draw' }]
+    anim.push({ el: path, kind: drawKind })
     const head = arrowHead(a.x2, a.y2, a.angle, t.line)
     root.appendChild(head)
     anim.push({ el: head, kind: 'fade' })
@@ -127,6 +178,7 @@ export function buildFlowchartSvg(
       const mx = (a.x1 + a.x2) / 2
       const my = (a.y1 + a.y2) / 2
       const lw = estimateTextWidth(edge.label, 12) + 12
+      trackX(mx - lw / 2, mx + lw / 2)
       const g = el('g', {}, [
         el('rect', { x: mx - lw / 2, y: my - 10, width: lw, height: 20, rx: 4, fill: t.background }),
         textEl(mx, my, edge.label, { color: t.textSecondary, size: 12 }),
@@ -148,7 +200,7 @@ export function buildFlowchartSvg(
     nodeAnimByLayer[p.layer].push({ el: g, kind: 'scale' })
   }
 
-  // Interleave: L0 nodes, edges→L1, L1 nodes, edges→L2, ...; back-edges last.
+  // Interleave: L0 nodes, edges→L1, L1 nodes, ...; back/self-edges last.
   const steps: AnimStep[] = []
   const backEdges: AnimStep = []
   for (let layer = 0; layer < layout.layers.length; layer++) {
@@ -163,7 +215,15 @@ export function buildFlowchartSvg(
   }
   if (backEdges.length > 0) steps.push(backEdges)
 
-  return { svg, steps: steps.filter((s) => s.length > 0) }
+  const pad = opts.padding
+  const w = layout.width + extraLeft + extraRight + pad * 2
+  const h = layout.height + extraBottom + pad * 2
+  const label = `Flowchart with ${config.nodes.length} nodes and ${config.edges.length} edges`
+  const svg = svgRoot(w, h, opts, label)
+  root.setAttribute('transform', `translate(${pad + extraLeft},${pad})`)
+  svg.appendChild(root)
+
+  return { svg, steps: steps.filter((st) => st.length > 0) }
 }
 
 export function flowchart(container: HTMLElement, config: FlowchartConfig): DiagramController {

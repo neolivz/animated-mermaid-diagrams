@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { buildFlowchartSvg, flowchart } from '../src/flowchart/render'
 import { resolveOptions, lightTheme } from '../src/theme'
+import { estimateTextWidth } from '../src/svg'
 import type { FlowchartConfig } from '../src/types'
 
 const CONFIG: FlowchartConfig = {
@@ -89,5 +90,33 @@ describe('flowchart()', () => {
     expect(container.querySelector('svg')).not.toBeNull()
     ctrl.destroy()
     expect(container.querySelector('svg')).toBeNull()
+  })
+})
+
+describe('self-edges and label overflow', () => {
+  it('renders self-edges as a visible loop with its label', () => {
+    const cfg: FlowchartConfig = {
+      nodes: [{ id: 'a', text: 'Retry' }, { id: 'b', text: 'Done' }],
+      edges: [{ from: 'a', to: 'a', label: 'again' }, { from: 'a', to: 'b' }],
+      direction: 'TB',
+    }
+    const { svg: s, steps: st } = buildFlowchartSvg(cfg, opts)
+    const curves = [...s.querySelectorAll('path')].filter((p) => (p.getAttribute('d') ?? '').includes('C'))
+    expect(curves).toHaveLength(2) // self-loop + normal edge
+    expect([...s.querySelectorAll('text')].map((t) => t.textContent)).toContain('again')
+    // self-loop animates in the final (back-edge) step
+    expect(st[st.length - 1].length).toBeGreaterThan(0)
+  })
+
+  it('expands the canvas so long edge labels stay in bounds', () => {
+    const label = 'this is a very long edge label indeed'
+    const cfg: FlowchartConfig = {
+      nodes: [{ id: 'a', text: 'A' }, { id: 'b', text: 'B' }],
+      edges: [{ from: 'a', to: 'b', label }],
+      direction: 'TB',
+    }
+    const { svg: s } = buildFlowchartSvg(cfg, opts)
+    const [, , vw] = (s.getAttribute('viewBox') ?? '').split(' ').map(Number)
+    expect(vw).toBeGreaterThanOrEqual(estimateTextWidth(label, 12) + 12 + 80)
   })
 })
