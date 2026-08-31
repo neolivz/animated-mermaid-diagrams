@@ -115,13 +115,51 @@ export function buildStateSvg(
       ...(tr.label ? { labelW: estimateTextWidth(tr.label, 12) + 12, labelH: 20 } : {}),
     })),
   ]
+  // The synthetic __start node is never a member of any composite group —
+  // it isn't in config.states, so it's naturally absent from nodeGroup.
+  const nodeGroup = new Map(
+    config.states.filter((s) => s.group !== undefined).map((s) => [s.id, s.group!]),
+  )
   const layout = graphLayout(
     layoutStates.map((s) => ({ id: s.id, ...stateSize(s) })),
     layoutEdges,
     'TB',
+    config.groups,
+    nodeGroup,
   )
   const root = el('g')
   const labelLayer = el('g')
+
+  // Cluster (composite state) chrome: rect + title, appended before all
+  // transitions/states so it paints at the bottom of the z-order. Their anim
+  // membership is resolved once member states' anim groups are known, below.
+  const clusterEls: { id: string; g: SVGGElement }[] = []
+  for (const cluster of layout.clusters) {
+    const group = config.groups?.find((gr) => gr.id === cluster.id)
+    const g = el('g', {}, [
+      el('rect', {
+        x: cluster.x,
+        y: cluster.y,
+        width: cluster.w,
+        height: cluster.h,
+        fill: t.noteBackground,
+        'fill-opacity': 0.35,
+        stroke: t.noteBorder,
+        rx: 6,
+      }),
+    ])
+    if (group) {
+      g.appendChild(
+        textEl(cluster.x + 10, cluster.y + 14, group.title, {
+          color: t.textSecondary,
+          size: 12,
+          anchor: 'start',
+        }),
+      )
+    }
+    root.appendChild(g)
+    clusterEls.push({ id: cluster.id, g })
+  }
 
   // Self-loops hang outside the state layout (dagre never sees them) and grow
   // the canvas instead of clipping (same pattern as the flowchart renderer).
@@ -285,6 +323,29 @@ export function buildStateSvg(
     if (!shown.has(s.id) && groupById.has(s.id)) orphans.push({ el: groupById.get(s.id)!, kind: 'scale' })
   }
   if (orphans.length > 0) steps.push(orphans)
+
+  // Cluster (composite state) chrome joins the anim group where its first
+  // member state appears — never adding steps of its own. "First" means the
+  // earliest anim step (by index) that reveals any of the cluster's member
+  // states (including nested subgroups' members).
+  if (clusterEls.length > 0) {
+    const membersOf = (groupId: string, seen: Set<string> = new Set()): string[] => {
+      if (seen.has(groupId)) return [] // defensive: guard against a cyclic parent chain
+      seen.add(groupId)
+      const direct = config.states.filter((s) => s.group === groupId).map((s) => s.id)
+      const childGroups = (config.groups ?? [])
+        .filter((gr) => gr.parent === groupId)
+        .map((gr) => gr.id)
+      return [...direct, ...childGroups.flatMap((id) => membersOf(id, seen))]
+    }
+    for (const { id, g } of clusterEls) {
+      const members = membersOf(id)
+      const stepIndex = steps.findIndex((st) =>
+        st.some((item) => members.some((m) => groupById.get(m) === item.el)),
+      )
+      if (stepIndex >= 0) steps[stepIndex].unshift({ el: g, kind: 'fade' })
+    }
+  }
 
   const finalSteps = steps.filter((st) => st.length > 0)
 

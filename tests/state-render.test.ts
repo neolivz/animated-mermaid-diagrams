@@ -196,6 +196,90 @@ describe('buildStateSvg', () => {
   })
 })
 
+describe('buildStateSvg — composite state containers', () => {
+  const COMPOSITE_CONFIG: StateConfig = {
+    states: [
+      { id: 'idle', text: 'Idle' },
+      { id: 'inner', text: 'Inner', group: 'Active' },
+      { id: 'done', text: 'Done', group: 'Active' },
+    ],
+    transitions: [
+      { from: 'idle', to: 'inner' },
+      { from: 'inner', to: 'done' },
+    ],
+    initial: 'idle',
+    groups: [{ id: 'Active', title: 'Active' }],
+  }
+
+  it('renders a cluster rect that contains its member state rects, plus the title', () => {
+    const { svg } = buildStateSvg(COMPOSITE_CONFIG, opts)
+    const texts = [...svg.querySelectorAll('text')].map((t) => t.textContent)
+    expect(texts).toContain('Active')
+
+    const titleText = [...svg.querySelectorAll('text')].find((t) => t.textContent === 'Active')!
+    const clusterG = titleText.closest('g')!
+    const clusterRect = clusterG.querySelector('rect')!
+    const cluster = {
+      x: +clusterRect.getAttribute('x')!,
+      y: +clusterRect.getAttribute('y')!,
+      w: +clusterRect.getAttribute('width')!,
+      h: +clusterRect.getAttribute('height')!,
+    }
+
+    const innerText = [...svg.querySelectorAll('text')].find((t) => t.textContent === 'Inner')!
+    const innerRect = innerText.previousElementSibling as SVGRectElement
+    const inner = {
+      x: +innerRect.getAttribute('x')!,
+      y: +innerRect.getAttribute('y')!,
+      w: +innerRect.getAttribute('width')!,
+      h: +innerRect.getAttribute('height')!,
+    }
+    expect(cluster.x).toBeLessThanOrEqual(inner.x)
+    expect(cluster.y).toBeLessThanOrEqual(inner.y)
+    expect(cluster.x + cluster.w).toBeGreaterThanOrEqual(inner.x + inner.w)
+    expect(cluster.y + cluster.h).toBeGreaterThanOrEqual(inner.y + inner.h)
+  })
+
+  it('keeps the anim step count equal to intro + one per transition, unchanged by grouping', () => {
+    const { steps } = buildStateSvg(COMPOSITE_CONFIG, opts)
+    expect(steps).toHaveLength(1 + COMPOSITE_CONFIG.transitions.length)
+  })
+
+  it('places the cluster chrome in the anim step where its first member state first appears', () => {
+    const { steps } = buildStateSvg(COMPOSITE_CONFIG, opts)
+    // 'inner' first appears in the step that carries the idle->inner transition.
+    const stepWithInner = steps.findIndex((st) => st.some((item) => item.el.textContent === 'Inner'))
+    expect(stepWithInner).toBeGreaterThanOrEqual(0)
+    const clusterStep = steps.findIndex((st) => st.some((item) => item.el.textContent === 'Active'))
+    expect(clusterStep).toBe(stepWithInner)
+  })
+
+  it('never groups the synthetic __start node even when the initial state is inside a group', () => {
+    const cfg: StateConfig = {
+      states: [{ id: 'inner', text: 'Inner', group: 'Active' }],
+      transitions: [],
+      initial: 'inner',
+      groups: [{ id: 'Active', title: 'Active' }],
+    }
+    const { svg } = buildStateSvg(cfg, opts)
+    const startDot = [...svg.querySelectorAll('circle')].find(
+      (c) => c.getAttribute('fill') === lightTheme.nodeBorder && c.getAttribute('r') === '7',
+    )!
+    const titleText = [...svg.querySelectorAll('text')].find((t) => t.textContent === 'Active')!
+    const clusterRect = titleText.closest('g')!.querySelector('rect')!
+    const cluster = {
+      x: +clusterRect.getAttribute('x')!,
+      y: +clusterRect.getAttribute('y')!,
+      w: +clusterRect.getAttribute('width')!,
+      h: +clusterRect.getAttribute('height')!,
+    }
+    const cx = +startDot.getAttribute('cx')!
+    const cy = +startDot.getAttribute('cy')!
+    const inside = cx >= cluster.x && cx <= cluster.x + cluster.w && cy >= cluster.y && cy <= cluster.y + cluster.h
+    expect(inside).toBe(false)
+  })
+})
+
 describe('stateDiagram()', () => {
   it('mounts and returns a controller', () => {
     const container = document.createElement('div')

@@ -37,18 +37,52 @@ describe('parseState', () => {
     expect(c.initial).toBeUndefined()
   })
 
-  it('flattens composite state blocks, ignoring the grouping', () => {
+  it('captures composite state blocks as groups, tags members, and re-targets initial to the first member', () => {
     const c = parseState(`stateDiagram-v2
       [*] --> Active
       state Active {
         [*] --> Inner
         Inner --> Done
       }`)
-    expect(c.states.map((s) => s.id)).toContain('Inner')
-    expect(c.states.map((s) => s.id)).toContain('Done')
+    expect(c.states.map((s) => s.id)).toEqual(['Inner', 'Done'])
+    expect(c.states.every((s) => s.group === 'Active')).toBe(true)
     expect(c.transitions).toContainEqual({ from: 'Inner', to: 'Done' })
-    // first [*] wins as the diagram's initial
-    expect(c.initial).toBe('Active')
+    expect(c.groups).toEqual([{ id: 'Active', title: 'Active' }])
+    // [*] --> Active re-targets to Active's first member in document order, Inner
+    expect(c.initial).toBe('Inner')
+  })
+
+  it('re-targets a transition into a composite to its first member state', () => {
+    const c = parseState(`stateDiagram-v2
+      [*] --> X
+      X --> Group1
+      state Group1 {
+        [*] --> Y
+      }`)
+    expect(c.transitions).toContainEqual({ from: 'X', to: 'Y' })
+    expect(c.initial).toBe('X')
+  })
+
+  it('degrades an empty composite state block to a regular state', () => {
+    const c = parseState('stateDiagram-v2\nstate Empty {\n}\n[*] --> Empty')
+    expect(c.states.map((s) => s.id)).toContain('Empty')
+    expect(c.states.find((s) => s.id === 'Empty')?.group).toBeUndefined()
+    expect(c.groups).toBeUndefined()
+    expect(c.initial).toBe('Empty')
+  })
+
+  it('nests parent links for composites declared inside another composite', () => {
+    const c = parseState(`stateDiagram-v2
+      state Outer {
+        state Inner {
+          [*] --> A
+        }
+      }`)
+    expect(c.groups).toEqual([
+      { id: 'Outer', title: 'Outer' },
+      { id: 'Inner', title: 'Inner', parent: 'Outer' },
+    ])
+    expect(c.states.find((s) => s.id === 'A')?.group).toBe('Inner')
   })
 
   it('accepts plain stateDiagram header', () => {

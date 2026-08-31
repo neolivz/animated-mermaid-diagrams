@@ -133,11 +133,16 @@ export interface FlowEdge {
   type?: 'solid' | 'dashed'
 }
 
-export interface FlowchartGroup {
+/** A container group (flowchart subgraph / state composite): an id + title,
+ *  optionally nested under a parent group. Shared shape so flowchart and
+ *  state configs don't each redeclare it. */
+export interface DiagramGroup {
   id: string
   title: string
   parent?: string
 }
+
+export type FlowchartGroup = DiagramGroup
 
 export interface FlowchartConfig {
   type?: 'flowchart'
@@ -155,6 +160,8 @@ export interface StateNode {
   text: string
   type?: 'default' | 'start' | 'end'
   highlight?: boolean | 'red' | 'green'
+  /** id of the enclosing composite state, if any */
+  group?: string
 }
 
 export interface StateTransition {
@@ -168,6 +175,7 @@ export interface StateConfig {
   states: StateNode[]
   transitions: StateTransition[]
   initial?: string
+  groups?: DiagramGroup[]
   options?: DiagramOptions
 }
 
