@@ -216,6 +216,136 @@ describe('multi-tier and bidirectional edge routing (dagre)', () => {
   })
 })
 
+describe('subgraph clusters', () => {
+  const GROUP_CONFIG: FlowchartConfig = {
+    nodes: [
+      { id: 'a', text: 'A', group: 'g1' },
+      { id: 'b', text: 'B', group: 'g1' },
+      { id: 'c', text: 'C' },
+    ],
+    edges: [
+      { from: 'a', to: 'b' },
+      { from: 'b', to: 'c' },
+    ],
+    direction: 'TB',
+    groups: [{ id: 'g1', title: 'Group One' }],
+  }
+  const NO_GROUP_CONFIG: FlowchartConfig = {
+    nodes: [
+      { id: 'a', text: 'A' },
+      { id: 'b', text: 'B' },
+      { id: 'c', text: 'C' },
+    ],
+    edges: [
+      { from: 'a', to: 'b' },
+      { from: 'b', to: 'c' },
+    ],
+    direction: 'TB',
+  }
+
+  it('renders a cluster rect containing its member node rects, plus the title text', () => {
+    const { svg } = buildFlowchartSvg(GROUP_CONFIG, opts)
+    const clusterRect = [...svg.querySelectorAll('rect')].find(
+      (r) =>
+        r.getAttribute('fill') === lightTheme.noteBackground &&
+        r.getAttribute('fill-opacity') === '0.35' &&
+        r.getAttribute('stroke') === lightTheme.noteBorder &&
+        r.getAttribute('rx') === '6',
+    )
+    expect(clusterRect).toBeTruthy()
+    const cx = +clusterRect!.getAttribute('x')!
+    const cy = +clusterRect!.getAttribute('y')!
+    const cw = +clusterRect!.getAttribute('width')!
+    const ch = +clusterRect!.getAttribute('height')!
+
+    const nodeRectOf = (text: string): { x: number; y: number; w: number; h: number } => {
+      const t = [...svg.querySelectorAll('text')].find((el) => el.textContent === text)!
+      const r = t.previousElementSibling as SVGRectElement
+      return {
+        x: +r.getAttribute('x')!,
+        y: +r.getAttribute('y')!,
+        w: +r.getAttribute('width')!,
+        h: +r.getAttribute('height')!,
+      }
+    }
+    for (const label of ['A', 'B']) {
+      const n = nodeRectOf(label)
+      expect(n.x).toBeGreaterThanOrEqual(cx)
+      expect(n.y).toBeGreaterThanOrEqual(cy)
+      expect(n.x + n.w).toBeLessThanOrEqual(cx + cw)
+      expect(n.y + n.h).toBeLessThanOrEqual(cy + ch)
+    }
+
+    const titleText = [...svg.querySelectorAll('text')].find((t) => t.textContent === 'Group One')
+    expect(titleText).toBeTruthy()
+    expect(+titleText!.getAttribute('x')!).toBeCloseTo(cx + 10, 5)
+    expect(+titleText!.getAttribute('y')!).toBeCloseTo(cy + 14, 5)
+  })
+
+  it('appends cluster chrome before all edges/nodes (bottom of z-order)', () => {
+    const { svg } = buildFlowchartSvg(GROUP_CONFIG, opts)
+    const root = svg.querySelector('g')!
+    const clusterRect = [...svg.querySelectorAll('rect')].find(
+      (r) => r.getAttribute('fill-opacity') === '0.35',
+    )!
+    // The cluster rect's own <g> (or itself) should be the first child under root.
+    const firstChild = root.firstElementChild!
+    expect(firstChild === clusterRect || firstChild.contains(clusterRect)).toBe(true)
+  })
+
+  it('keeps the anim step count unchanged vs the no-group equivalent (auto mode)', () => {
+    const withGroup = buildFlowchartSvg(GROUP_CONFIG, opts)
+    const noGroup = buildFlowchartSvg(NO_GROUP_CONFIG, opts)
+    expect(withGroup.steps).toHaveLength(noGroup.steps.length)
+  })
+
+  it('places cluster chrome in the same anim group as its first member node (auto mode)', () => {
+    const { svg, steps } = buildFlowchartSvg(GROUP_CONFIG, opts)
+    const clusterRect = [...svg.querySelectorAll('rect')].find(
+      (r) => r.getAttribute('fill-opacity') === '0.35',
+    )!
+    const aText = [...svg.querySelectorAll('text')].find((t) => t.textContent === 'A')!
+    const aGroup = aText.closest('g') as SVGGElement
+
+    const stepWithA = steps.findIndex((st) => st.some((item) => item.el === aGroup))
+    const stepWithCluster = steps.findIndex(
+      (st) => st.some((item) => item.el === clusterRect || item.el.contains(clusterRect)),
+    )
+    expect(stepWithCluster).toBe(stepWithA)
+  })
+
+  it('keeps the anim step count unchanged vs the no-group equivalent (click mode)', () => {
+    const clickOpts = resolveOptions({ theme: 'light', advance: 'click' })
+    const withGroup = buildFlowchartSvg(GROUP_CONFIG, clickOpts)
+    const noGroup = buildFlowchartSvg(NO_GROUP_CONFIG, clickOpts)
+    expect(withGroup.steps).toHaveLength(noGroup.steps.length)
+  })
+
+  it('places cluster chrome in the same anim group as its first member node (click mode)', () => {
+    const clickOpts = resolveOptions({ theme: 'light', advance: 'click' })
+    const { svg, steps } = buildFlowchartSvg(GROUP_CONFIG, clickOpts)
+    const clusterRect = [...svg.querySelectorAll('rect')].find(
+      (r) => r.getAttribute('fill-opacity') === '0.35',
+    )!
+    const aText = [...svg.querySelectorAll('text')].find((t) => t.textContent === 'A')!
+    const aGroup = aText.closest('g') as SVGGElement
+
+    const stepWithA = steps.findIndex((st) => st.some((item) => item.el === aGroup))
+    const stepWithCluster = steps.findIndex(
+      (st) => st.some((item) => item.el === clusterRect || item.el.contains(clusterRect)),
+    )
+    expect(stepWithCluster).toBe(stepWithA)
+  })
+
+  it('does not make cluster chrome a click target; click expansion still works with groups present', () => {
+    const clickOpts = resolveOptions({ theme: 'light', advance: 'click' })
+    const { clickTargets } = buildFlowchartSvg(GROUP_CONFIG, clickOpts)
+    expect(clickTargets).toBeDefined()
+    // Same click-target count as the ungrouped equivalent: a (expands to b), b (expands to c).
+    expect(clickTargets).toHaveLength(2)
+  })
+})
+
 describe("advance: 'click'", () => {
   const clickOpts = resolveOptions({ theme: 'light', advance: 'click' })
 

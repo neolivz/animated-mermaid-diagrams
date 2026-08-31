@@ -62,13 +62,101 @@ describe('parseFlowchart', () => {
     expect(c.edges).toEqual([])
   })
 
-  it('silently ignores subgraph blocks but keeps their contents', () => {
+  it('captures subgraph blocks as groups and tags their inner nodes', () => {
     const c = parseFlowchart(`flowchart TD
       subgraph cluster one
         a --> b
       end
       b --> c`)
     expect(c.edges).toHaveLength(2)
+    expect(c.groups).toEqual([{ id: 'sg0', title: 'cluster one' }])
+    expect(c.nodes.find((n) => n.id === 'a')?.group).toBe('sg0')
+    expect(c.nodes.find((n) => n.id === 'b')?.group).toBe('sg0')
+    expect(c.nodes.find((n) => n.id === 'c')?.group).toBeUndefined()
+  })
+
+  it('parses "subgraph id [Title]" form with an explicit id distinct from its title', () => {
+    const c = parseFlowchart(`flowchart TD
+      subgraph sub1 [My Group]
+        a --> b
+      end`)
+    expect(c.groups).toEqual([{ id: 'sub1', title: 'My Group' }])
+    expect(c.nodes.find((n) => n.id === 'a')?.group).toBe('sub1')
+  })
+
+  it('uses a bare single-word subgraph title as both id and title', () => {
+    const c = parseFlowchart(`flowchart TD
+      subgraph Group1
+        a --> b
+      end`)
+    expect(c.groups).toEqual([{ id: 'Group1', title: 'Group1' }])
+    expect(c.nodes.find((n) => n.id === 'a')?.group).toBe('Group1')
+  })
+
+  it('nests subgraphs and records parent links', () => {
+    const c = parseFlowchart(`flowchart TD
+      subgraph Outer
+        subgraph Inner
+          a --> b
+        end
+        c --> a
+      end`)
+    expect(c.groups).toEqual([
+      { id: 'Outer', title: 'Outer' },
+      { id: 'Inner', title: 'Inner', parent: 'Outer' },
+    ])
+    expect(c.nodes.find((n) => n.id === 'a')?.group).toBe('Inner')
+    expect(c.nodes.find((n) => n.id === 'b')?.group).toBe('Inner')
+    expect(c.nodes.find((n) => n.id === 'c')?.group).toBe('Outer')
+  })
+
+  it('ignores a stray end with an empty group stack', () => {
+    const c = parseFlowchart(`flowchart TD
+      a --> b
+      end
+      b --> c`)
+    expect(c.edges).toHaveLength(2)
+    expect(c.groups).toBeUndefined()
+  })
+
+  it('assigns the group of a newly created node only — first-wins for repeat references', () => {
+    const c = parseFlowchart(`flowchart TD
+      a --> b
+      subgraph Group1
+        b --> c
+      end`)
+    // b was created outside any group on the first line, so it keeps no group
+    // even though it's referenced again inside Group1.
+    expect(c.nodes.find((n) => n.id === 'b')?.group).toBeUndefined()
+    expect(c.nodes.find((n) => n.id === 'c')?.group).toBe('Group1')
+  })
+
+  it('does not emit a groups key when no subgraphs are present', () => {
+    const c = parseFlowchart('flowchart TD\n a-->b')
+    expect(c.groups).toBeUndefined()
+  })
+
+  it('post-parse: drops a node and its edges when a node id collides with a group id used before declaration', () => {
+    const c = parseFlowchart(`flowchart TD
+      a --> Group1
+      subgraph Group1
+        x --> y
+      end`)
+    // 'Group1' was used as an edge endpoint before its subgraph declared it as
+    // a group id; ensure() would otherwise have created a phantom node for it.
+    expect(c.nodes.find((n) => n.id === 'Group1')).toBeUndefined()
+    expect(c.edges.some((e) => e.from === 'Group1' || e.to === 'Group1')).toBe(false)
+    expect(c.groups).toEqual([{ id: 'Group1', title: 'Group1' }])
+  })
+
+  it('post-parse: strips an edge that references a group id declared earlier', () => {
+    const c = parseFlowchart(`flowchart TD
+      subgraph Group1
+        x --> y
+      end
+      a --> Group1`)
+    expect(c.edges.some((e) => e.from === 'Group1' || e.to === 'Group1')).toBe(false)
+    expect(c.nodes.find((n) => n.id === 'Group1')).toBeUndefined()
   })
 
   it('defaults direction to TB when omitted or TD, supports graph keyword', () => {

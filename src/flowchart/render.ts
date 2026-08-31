@@ -104,6 +104,9 @@ export function buildFlowchartSvg(
   const direction = config.direction ?? 'TB'
   const horizontal = direction === 'LR' || direction === 'RL'
   const nodeById = new Map(config.nodes.map((n) => [n.id, n]))
+  const nodeGroup = new Map(
+    config.nodes.filter((n) => n.group !== undefined).map((n) => [n.id, n.group!]),
+  )
   const layout = graphLayout(
     config.nodes.map((n) => ({ id: n.id, ...nodeSize(n) })),
     config.edges.map((edge) => ({
@@ -114,9 +117,42 @@ export function buildFlowchartSvg(
         : {}),
     })),
     direction,
+    config.groups,
+    nodeGroup,
   )
   const root = el('g')
   const labelLayer = el('g')
+
+  // Cluster (subgraph) chrome: rect + title, appended before all edges/nodes
+  // so it paints at the bottom of the z-order. Their anim membership is
+  // resolved once member nodes' anim groups are known, below.
+  const clusterEls: { id: string; g: SVGGElement }[] = []
+  for (const cluster of layout.clusters) {
+    const group = config.groups?.find((gr) => gr.id === cluster.id)
+    const g = el('g', {}, [
+      el('rect', {
+        x: cluster.x,
+        y: cluster.y,
+        width: cluster.w,
+        height: cluster.h,
+        fill: t.noteBackground,
+        'fill-opacity': 0.35,
+        stroke: t.noteBorder,
+        rx: 6,
+      }),
+    ])
+    if (group) {
+      g.appendChild(
+        textEl(cluster.x + 10, cluster.y + 14, group.title, {
+          color: t.textSecondary,
+          size: 12,
+          anchor: 'start',
+        }),
+      )
+    }
+    root.appendChild(g)
+    clusterEls.push({ id: cluster.id, g })
+  }
 
   // Self-loops hang outside the node layout (dagre never sees them) and grow
   // the canvas instead of clipping; the content group shifts by extraLeft/extraTop.
@@ -349,6 +385,29 @@ export function buildFlowchartSvg(
       if (e.targetLayer <= e.sourceLayer) backEdges.push(...e.anim)
     }
     if (backEdges.length > 0) steps.push(backEdges)
+  }
+
+  // Cluster (subgraph) chrome joins the anim group where its first member
+  // node appears — in both click and auto structures — never adding steps of
+  // its own. "First" means the earliest anim step (by index) that reveals
+  // any of the cluster's member nodes (including nested subgroups' members).
+  if (clusterEls.length > 0) {
+    const membersOf = (groupId: string, seen: Set<string> = new Set()): string[] => {
+      if (seen.has(groupId)) return [] // defensive: guard against a cyclic parent chain
+      seen.add(groupId)
+      const direct = config.nodes.filter((n) => n.group === groupId).map((n) => n.id)
+      const childGroups = (config.groups ?? [])
+        .filter((gr) => gr.parent === groupId)
+        .map((gr) => gr.id)
+      return [...direct, ...childGroups.flatMap((id) => membersOf(id, seen))]
+    }
+    for (const { id, g } of clusterEls) {
+      const members = membersOf(id)
+      const stepIndex = steps.findIndex((st) =>
+        st.some((item) => members.some((m) => nodeScaleTarget.get(m)?.el === item.el)),
+      )
+      if (stepIndex >= 0) steps[stepIndex].unshift({ el: g, kind: 'fade' })
+    }
   }
 
   const pad = opts.padding

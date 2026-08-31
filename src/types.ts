@@ -122,6 +122,8 @@ export interface FlowNode {
   text: string
   shape?: FlowShape
   highlight?: boolean
+  /** id of the enclosing subgraph, if any */
+  group?: string
 }
 
 export interface FlowEdge {
@@ -131,11 +133,18 @@ export interface FlowEdge {
   type?: 'solid' | 'dashed'
 }
 
+export interface FlowchartGroup {
+  id: string
+  title: string
+  parent?: string
+}
+
 export interface FlowchartConfig {
   type?: 'flowchart'
   nodes: FlowNode[]
   edges: FlowEdge[]
   direction?: FlowDirection
+  groups?: FlowchartGroup[]
   options?: DiagramOptions
 }
 
