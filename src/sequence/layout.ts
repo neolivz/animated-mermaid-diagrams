@@ -56,7 +56,7 @@ export const SELF_CURVE_DROP = 28
 export const SELF_TIP_GAP = 6
 
 // Frame chrome (alt/opt/loop/par) and section dividers (else/and).
-export const FRAME_TOP = 26
+export const FRAME_TOP = 36
 export const SECTION_DIV = 24
 export const FRAME_BOTTOM = 12
 export const FRAME_PAD_X = 30
