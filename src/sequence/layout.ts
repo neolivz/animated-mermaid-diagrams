@@ -23,16 +23,40 @@ const STEP_GAP = 46
 const SELF_EXTRA = 24
 // Renderer contract (Task 8): message/note text is 13px; notes spread 30px past
 // their lifelines with 20px text padding; self-message labels start 48px right
-// of the lifeline; the self-loop curve itself reaches ~55px.
-const MSG_FONT = 13
-const MSG_PAD = 16
-const SELF_LABEL_X = 48
-const SELF_CLEARANCE = 20
-const NOTE_SPREAD = 30
-const NOTE_PAD = 20
+// of the lifeline; the self-loop curve itself reaches ~55px. Exported so
+// src/sequence/render.ts shares these instead of duplicating the magic numbers.
+export const MSG_FONT = 13
+export const MSG_PAD = 16
+export const SELF_LABEL_X = 48
+export const SELF_CLEARANCE = 20
+export const NOTE_SPREAD = 30
+export const NOTE_PAD = 20
+export const SELF_CURVE_REACH = 55
+export const SELF_CURVE_DROP = 28
+export const SELF_TIP_GAP = 6
 
 function selfReach(s: SequenceStep): number {
-  return Math.max(70, SELF_LABEL_X + estimateTextWidth(s.text, MSG_FONT) + 8)
+  return Math.max(SELF_CURVE_REACH + 15, SELF_LABEL_X + estimateTextWidth(s.text, MSG_FONT) + 8)
+}
+
+export interface NoteBounds {
+  cx: number
+  w: number
+}
+
+/** Shared by layout (bounds budgeting) and render (drawing) so they can't drift.
+ *  Returns null when no referenced actor id resolves — such notes are skipped. */
+export function noteBounds(
+  step: SequenceStep,
+  xOfId: (id: string) => number | undefined,
+): NoteBounds | null {
+  const ids = Array.isArray(step.over) ? step.over : [step.over ?? step.from ?? '']
+  const xs = ids.map(xOfId).filter((x): x is number => x !== undefined)
+  if (xs.length === 0) return null
+  const x1 = Math.min(...xs) - NOTE_SPREAD
+  const x2 = Math.max(...xs) + NOTE_SPREAD
+  const w = Math.max(x2 - x1, estimateTextWidth(step.text, MSG_FONT) + NOTE_PAD)
+  return { cx: (x1 + x2) / 2, w }
 }
 
 export function layoutSequence(actors: SequenceActor[], steps: SequenceStep[]): SequenceLayout {
@@ -87,18 +111,14 @@ export function layoutSequence(actors: SequenceActor[], steps: SequenceStep[]): 
   let maxX = actors.length > 0 ? xs[actors.length - 1] + widths[actors.length - 1] / 2 : 0
   for (const s of steps) {
     if (s.type === 'note') {
-      const ids = Array.isArray(s.over) ? s.over : [s.over ?? s.from ?? '']
-      const noteCenters = ids
-        .map((id) => index.get(id))
-        .filter((i): i is number => i !== undefined)
-        .map((i) => xs[i])
-      if (noteCenters.length === 0) continue
-      const x1 = Math.min(...noteCenters) - NOTE_SPREAD
-      const x2 = Math.max(...noteCenters) + NOTE_SPREAD
-      const noteW = Math.max(x2 - x1, estimateTextWidth(s.text, MSG_FONT) + NOTE_PAD)
-      const c = (x1 + x2) / 2
-      minX = Math.min(minX, c - noteW / 2)
-      maxX = Math.max(maxX, c + noteW / 2)
+      const nb = noteBounds(s, (id) => {
+        const i = index.get(id)
+        return i === undefined ? undefined : xs[i]
+      })
+      if (nb) {
+        minX = Math.min(minX, nb.cx - nb.w / 2)
+        maxX = Math.max(maxX, nb.cx + nb.w / 2)
+      }
     } else if (s.from !== undefined && s.from === s.to) {
       const i = index.get(s.from)
       if (i !== undefined) maxX = Math.max(maxX, xs[i] + selfReach(s))

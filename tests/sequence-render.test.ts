@@ -79,6 +79,46 @@ describe('buildSequenceSvg', () => {
     expect(svg.getAttribute('aria-label')).toContain('Sequence diagram')
     expect(svg.getAttribute('aria-label')).toContain('User')
   })
+
+  it('renders failed messages with a cross mark instead of an arrowhead', () => {
+    const cfg: SequenceConfig = {
+      actors: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }],
+      steps: [{ from: 'a', to: 'b', text: 'nope', failed: true }],
+    }
+    const { svg: fsvg } = buildSequenceSvg(cfg, opts)
+    expect(fsvg.querySelectorAll('polygon')).toHaveLength(0)
+    const cross = [...fsvg.querySelectorAll('path')].filter((p) => /M .* M /.test(p.getAttribute('d') ?? ''))
+    expect(cross).toHaveLength(1)
+  })
+
+  it('rotates arrowheads to match message direction', () => {
+    const cfg: SequenceConfig = {
+      actors: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }],
+      steps: [
+        { from: 'a', to: 'b', text: 'right' },
+        { from: 'b', to: 'a', text: 'left' },
+      ],
+    }
+    const { svg: dsvg } = buildSequenceSvg(cfg, opts)
+    const rotations = [...dsvg.querySelectorAll('polygon')].map((p) => p.getAttribute('transform') ?? '')
+    expect(rotations[0]).toContain('rotate(0)')
+    expect(rotations[1]).toContain('rotate(180)')
+  })
+
+  it('skips steps referencing unknown actor ids without drawing at x=0', () => {
+    const cfg: SequenceConfig = {
+      actors: [{ id: 'a', label: 'A' }],
+      steps: [
+        { over: ['ghost'], text: 'lost note', type: 'note' },
+        { from: 'a', to: 'ghost', text: 'lost msg' },
+      ],
+    }
+    const { svg: gsvg, steps: gsteps } = buildSequenceSvg(cfg, opts)
+    expect(gsteps).toHaveLength(3)
+    const texts = [...gsvg.querySelectorAll('text')].map((n) => n.textContent)
+    expect(texts).not.toContain('lost note')
+    expect(texts).not.toContain('lost msg')
+  })
 })
 
 describe('sequence()', () => {

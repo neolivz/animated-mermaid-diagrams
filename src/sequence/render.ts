@@ -1,8 +1,18 @@
 import type { AnimStep } from '../animator'
 import { createDiagram } from '../controller'
 import { resolveOptions } from '../theme'
-import { arrowHead, crossMark, el, estimateTextWidth, svgRoot, textEl } from '../svg'
-import { ACTOR_BOX_H, HEADER_H, layoutSequence } from './layout'
+import { arrowHead, crossMark, el, svgRoot, textEl } from '../svg'
+import {
+  ACTOR_BOX_H,
+  HEADER_H,
+  MSG_FONT,
+  SELF_CURVE_DROP,
+  SELF_CURVE_REACH,
+  SELF_LABEL_X,
+  SELF_TIP_GAP,
+  layoutSequence,
+  noteBounds,
+} from './layout'
 import type { DiagramController, ResolvedOptions, SequenceConfig } from '../types'
 
 export function buildSequenceSvg(
@@ -78,71 +88,75 @@ export function buildSequenceSvg(
     const group: AnimStep = []
 
     if (s.type === 'note') {
-      const ids = Array.isArray(s.over) ? s.over : [s.over ?? s.from ?? '']
-      const xs = ids.map((id) => xOf.get(id) ?? 0)
-      const x1 = Math.min(...xs) - 30
-      const x2 = Math.max(...xs) + 30
-      const noteW = Math.max(x2 - x1, estimateTextWidth(s.text, 13) + 20)
-      const cx = (x1 + x2) / 2
-      const g = el('g', {}, [
-        el('rect', {
-          x: cx - noteW / 2,
-          y: y - 15,
-          width: noteW,
-          height: 30,
-          rx: 4,
-          fill: t.noteBackground,
-          stroke: t.noteBorder,
-        }),
-        textEl(cx, y, s.text, { color: t.textSecondary, size: 13 }),
-      ])
-      root.appendChild(g)
-      group.push({ el: g, kind: 'fade' })
+      const nb = noteBounds(s, (id) => xOf.get(id))
+      if (nb) {
+        const g = el('g', {}, [
+          el('rect', {
+            x: nb.cx - nb.w / 2,
+            y: y - 15,
+            width: nb.w,
+            height: 30,
+            rx: 4,
+            fill: t.noteBackground,
+            stroke: t.noteBorder,
+          }),
+          textEl(nb.cx, y, s.text, { color: t.textSecondary, size: MSG_FONT }),
+        ])
+        root.appendChild(g)
+        group.push({ el: g, kind: 'fade' })
+      }
+      // else: unknown/unresolved actor id(s) — draw nothing for this step
     } else if (s.from !== undefined && s.from === s.to) {
-      const x = xOf.get(s.from) ?? 0
-      const color = s.highlight ? t.highlight : s.type === 'response' ? t.lineResponse : t.line
-      const dashAttr: Record<string, string> = s.type === 'response' ? { 'stroke-dasharray': '6 4' } : {}
-      const path = el('path', {
-        d: `M ${x} ${y} C ${x + 55} ${y}, ${x + 55} ${y + 28}, ${x + 6} ${y + 28}`,
-        fill: 'none',
-        stroke: color,
-        'stroke-width': 2,
-        ...dashAttr,
-      })
-      root.appendChild(path)
-      group.push({ el: path, kind: s.type === 'response' ? 'drawDash' : 'draw' })
-      const head = arrowHead(x + 6, y + 28, 180, color)
-      root.appendChild(head)
-      group.push({ el: head, kind: 'fade' })
-      const txt = textEl(x + 48, y - 12, s.text, { color: t.text, size: 13, anchor: 'start' })
-      root.appendChild(txt)
-      group.push({ el: txt, kind: 'fade' })
+      const x = xOf.get(s.from)
+      if (x !== undefined) {
+        const color = s.highlight ? t.highlight : s.type === 'response' ? t.lineResponse : t.line
+        const dashAttr: Record<string, string> = s.type === 'response' ? { 'stroke-dasharray': '6 4' } : {}
+        const path = el('path', {
+          d: `M ${x} ${y} C ${x + SELF_CURVE_REACH} ${y}, ${x + SELF_CURVE_REACH} ${y + SELF_CURVE_DROP}, ${x + SELF_TIP_GAP} ${y + SELF_CURVE_DROP}`,
+          fill: 'none',
+          stroke: color,
+          'stroke-width': 2,
+          ...dashAttr,
+        })
+        root.appendChild(path)
+        group.push({ el: path, kind: s.type === 'response' ? 'drawDash' : 'draw' })
+        const head = arrowHead(x + SELF_TIP_GAP, y + SELF_CURVE_DROP, 180, color)
+        root.appendChild(head)
+        group.push({ el: head, kind: 'fade' })
+        const txt = textEl(x + SELF_LABEL_X, y - 12, s.text, { color: t.text, size: MSG_FONT, anchor: 'start' })
+        root.appendChild(txt)
+        group.push({ el: txt, kind: 'fade' })
+      }
+      // else: unknown/unresolved actor id — draw nothing for this step
     } else {
-      const x1 = xOf.get(s.from ?? '') ?? 0
-      const x2 = xOf.get(s.to ?? '') ?? 0
-      const dir = x2 > x1 ? 1 : -1
-      const color = s.highlight ? t.highlight : s.type === 'response' ? t.lineResponse : t.line
-      const dashAttr: Record<string, string> = s.type === 'response' ? { 'stroke-dasharray': '6 4' } : {}
-      const tipX = x2 - dir * 4
-      const line = el('line', {
-        x1,
-        y1: y,
-        x2: tipX,
-        y2: y,
-        stroke: color,
-        'stroke-width': 2,
-        ...dashAttr,
-      })
-      root.appendChild(line)
-      group.push({ el: line, kind: s.type === 'response' ? 'drawDash' : 'draw' })
-      const tip = s.failed
-        ? crossMark(x2 - dir * 8, y, color)
-        : arrowHead(tipX, y, dir === 1 ? 0 : 180, color)
-      root.appendChild(tip)
-      group.push({ el: tip, kind: 'fade' })
-      const txt = textEl((x1 + x2) / 2, y - 12, s.text, { color: t.text, size: 13 })
-      root.appendChild(txt)
-      group.push({ el: txt, kind: 'fade' })
+      const x1 = xOf.get(s.from ?? '')
+      const x2 = xOf.get(s.to ?? '')
+      if (x1 !== undefined && x2 !== undefined) {
+        const dir = x2 > x1 ? 1 : -1
+        const color = s.highlight ? t.highlight : s.type === 'response' ? t.lineResponse : t.line
+        const dashAttr: Record<string, string> = s.type === 'response' ? { 'stroke-dasharray': '6 4' } : {}
+        const tipX = x2 - dir * 4
+        const line = el('line', {
+          x1,
+          y1: y,
+          x2: tipX,
+          y2: y,
+          stroke: color,
+          'stroke-width': 2,
+          ...dashAttr,
+        })
+        root.appendChild(line)
+        group.push({ el: line, kind: s.type === 'response' ? 'drawDash' : 'draw' })
+        const tip = s.failed
+          ? crossMark(x2 - dir * 8, y, color)
+          : arrowHead(tipX, y, dir === 1 ? 0 : 180, color)
+        root.appendChild(tip)
+        group.push({ el: tip, kind: 'fade' })
+        const txt = textEl((x1 + x2) / 2, y - 12, s.text, { color: t.text, size: MSG_FONT })
+        root.appendChild(txt)
+        group.push({ el: txt, kind: 'fade' })
+      }
+      // else: unknown/unresolved actor id(s) — draw nothing for this step
     }
     animSteps.push(group)
   })
