@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { buildSequenceSvg, sequence } from '../src/sequence/render'
+import { parseSequence } from '../src/sequence/parse'
 import { resolveOptions, lightTheme } from '../src/theme'
 import type { SequenceConfig } from '../src/types'
 
@@ -206,6 +207,26 @@ describe('buildSequenceSvg — frames and activations', () => {
     const act = FRAME_CONFIG.activations![0]
     const group = steps[act.fromStep + 1]
     expect(group.some((item) => item.el === bar)).toBe(true)
+  })
+
+  it('paints nested frame chrome outermost-first so the outer <g> precedes the inner in document order', () => {
+    const cfg = parseSequence(`sequenceDiagram
+      A->>B: pre
+      alt happy path
+        B-->>A: ok
+        opt logging
+          B->>B: log
+        end
+      else sad
+        B-->>A: fail
+      end
+      A->>B: post`)
+    const { svg } = buildSequenceSvg(cfg, opts)
+    const altText = [...svg.querySelectorAll('text')].find((t) => t.textContent === 'alt')!
+    const optText = [...svg.querySelectorAll('text')].find((t) => t.textContent === 'opt')!
+    const outerG = altText.closest('g') as SVGGElement
+    const innerG = optText.closest('g') as SVGGElement
+    expect(outerG.compareDocumentPosition(innerG) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 })
 

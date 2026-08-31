@@ -94,8 +94,10 @@ export function buildSequenceSvg(
   const stepGroups: AnimStep[] = config.steps.map(() => [])
 
   // Frame boxes + section dividers, drawn above lifelines but below activation
-  // bars and message/note elements (z-order bottom -> top).
-  for (const box of L.frames) {
+  // bars and message/note elements (z-order bottom -> top). L.frames arrives
+  // innermost-first (parser order); append outermost-first so a nested frame's
+  // chrome paints (and z-stacks) on top of its parent's, not the reverse.
+  for (const box of [...L.frames].reverse()) {
     const f = box.frame
     const g = el('g')
     g.appendChild(
