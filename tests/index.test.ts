@@ -1,6 +1,32 @@
 import { describe, it, expect, vi } from 'vitest'
 import { detectType } from '../src/detect'
-import { render, init, sequence, flowchart, stateDiagram } from '../src/index'
+import { render, init, sequence, flowchart, stateDiagram, lightTheme } from '../src/index'
+// The public type surface is imported through the package entry (not ../src/types)
+// on purpose: `npm run typecheck` covers this file, so anything dropped from
+// index.ts's `export type` block fails the build here rather than silently
+// disappearing from dist/index.d.ts.
+import type {
+  DiagramConfig,
+  DiagramController,
+  DiagramGroup,
+  DiagramOptions,
+  FlowchartConfig,
+  FlowchartGroup,
+  FlowDirection,
+  FlowEdge,
+  FlowNode,
+  FlowShape,
+  SequenceActivation,
+  SequenceActor,
+  SequenceConfig,
+  SequenceFrame,
+  SequenceFrameSection,
+  SequenceStep,
+  StateConfig,
+  StateNode,
+  StateTransition,
+  ThemeTokens,
+} from '../src/index'
 
 describe('detectType', () => {
   it('detects all three v1 types', () => {
@@ -182,5 +208,82 @@ describe('public exports', () => {
     expect(typeof sequence).toBe('function')
     expect(typeof flowchart).toBe('function')
     expect(typeof stateDiagram).toBe('function')
+  })
+
+  // Every v1.1 config field must be nameable from the package entry, not just
+  // structurally assignable — a consumer building frames/activations/groups in
+  // a helper function needs the type to annotate it with.
+  it('exposes every config type needed to hand-build a v1.1 diagram', () => {
+    const section: SequenceFrameSection = { label: 'no links', fromStep: 1 }
+    const frame: SequenceFrame = {
+      kind: 'alt',
+      label: 'item has links',
+      fromStep: 0,
+      toStep: 1,
+      sections: [section],
+      depth: 0,
+    }
+    const activation: SequenceActivation = { actor: 'b', fromStep: 0, toStep: 1, level: 0 }
+    const actor: SequenceActor = { id: 'a', label: 'A', type: 'actor' }
+    const step: SequenceStep = { from: 'a', to: 'b', text: 'x', type: 'request' }
+    const seqCfg: SequenceConfig = {
+      type: 'sequence',
+      actors: [actor, { id: 'b', label: 'B' }],
+      steps: [step, { from: 'b', to: 'a', text: 'y', type: 'response' }],
+      frames: [frame],
+      activations: [activation],
+    }
+
+    const group: DiagramGroup = { id: 'g', title: 'Group' }
+    const flowGroup: FlowchartGroup = { id: 'inner', title: 'Inner', parent: 'g' }
+    const shape: FlowShape = 'stadium'
+    const direction: FlowDirection = 'LR'
+    const node: FlowNode = { id: 'n1', text: 'N1', shape, group: 'inner' }
+    const edge: FlowEdge = { from: 'n1', to: 'n2', label: 'e', type: 'dashed' }
+    const flowCfg: FlowchartConfig = {
+      type: 'flowchart',
+      nodes: [node, { id: 'n2', text: 'N2', group: 'inner' }],
+      edges: [edge],
+      direction,
+      groups: [group, flowGroup],
+    }
+
+    const stateNode: StateNode = { id: 's1', text: 'S1', highlight: 'red', group: 'g' }
+    const transition: StateTransition = { from: 's1', to: 's2', label: 't' }
+    const stateCfg: StateConfig = {
+      type: 'state',
+      states: [stateNode, { id: 's2', text: 'S2', group: 'g' }],
+      transitions: [transition],
+      initial: 's1',
+      groups: [group],
+    }
+
+    const theme: ThemeTokens = { ...lightTheme }
+    const options: DiagramOptions = { theme, trigger: 'manual', animate: false }
+    const configs: DiagramConfig[] = [seqCfg, flowCfg, stateCfg]
+
+    const controllers: DiagramController[] = configs.map((cfg) =>
+      render(document.createElement('div'), cfg, options),
+    )
+    expect(controllers).toHaveLength(3)
+    controllers.forEach((c) => c.destroy())
+  })
+
+  it('renders the container chrome from hand-built groups (no Mermaid text)', () => {
+    const container = document.createElement('div')
+    const cfg: FlowchartConfig = {
+      type: 'flowchart',
+      nodes: [
+        { id: 'a', text: 'A', group: 'val' },
+        { id: 'b', text: 'B', group: 'val' },
+      ],
+      edges: [{ from: 'a', to: 'b' }],
+      groups: [{ id: 'val', title: 'Validation' }],
+      options: { animate: false },
+    }
+    const ctrl = flowchart(container, cfg)
+    const texts = [...container.querySelectorAll('text')].map((t) => t.textContent)
+    expect(texts).toContain('Validation')
+    ctrl.destroy()
   })
 })

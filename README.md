@@ -8,9 +8,11 @@ Drop-in animated rendering for Mermaid diagrams. Accepts Mermaid syntax or a JS 
 npm install animated-mermaid-diagrams
 ```
 
+> **Not yet published to npm.** Until the first release, build from source: clone the repo, then `npm install && npm run build`.
+
 ## Vision
 
-Animate every Mermaid diagram type. V1 ships sequence, flowchart, and state diagrams — the three types where step-by-step animation adds the most value. Subsequent releases add the remaining types.
+Animate every Mermaid diagram type. V1 (currently `0.1.0`, unreleased) ships sequence, flowchart, and state diagrams — the three types where step-by-step animation adds the most value. Subsequent releases add the remaining types.
 
 ### Roadmap
 
@@ -51,7 +53,7 @@ The `render()` function auto-detects the diagram type from the Mermaid syntax (f
 
 ### JS config input
 
-For programmatic use or when you need features beyond what Mermaid syntax supports (highlights, custom callbacks per step).
+For programmatic use, or for the config-only extras Mermaid syntax can't express: `highlight` on individual steps/nodes/states, and hand-built `frames` / `activations` / `groups`.
 
 ```js
 import { render } from 'animated-mermaid-diagrams'
@@ -132,6 +134,15 @@ sequence(container, {
 | `label` | `string` | yes | Display name |
 | `type` | `'actor' \| 'participant'` | no | Default `'participant'`. `actor` renders as a person icon, `participant` as a box |
 
+#### Config fields
+
+| Field | Type | Required | Description |
+| ----- | ---- | -------- | ----------- |
+| `actors` | `SequenceActor[]` | yes | Participants, laid out left to right |
+| `steps` | `SequenceStep[]` | yes | Messages and notes, in order |
+| `frames` | `SequenceFrame[]` | no | `alt`/`opt`/`loop`/`par` boxes, each spanning an inclusive `fromStep`–`toStep` range with optional `sections` (see [Sequence diagram syntax](#sequence-diagram-syntax)) |
+| `activations` | `SequenceActivation[]` | no | Activation bars on one actor's lifeline over an inclusive step range (see [Sequence diagram syntax](#sequence-diagram-syntax)) |
+
 #### Animation behaviour
 
 - Vertical dashed lifelines drop from each actor box
@@ -185,6 +196,7 @@ flowchart(container, {
 | `text` | `string` | yes | Display text |
 | `shape` | `'rect' \| 'rounded' \| 'diamond' \| 'circle' \| 'stadium'` | no | Default `'rounded'` |
 | `highlight` | `boolean` | no | Accent color for important nodes |
+| `group` | `string` | no | Id of the enclosing subgraph, from `groups` |
 
 #### Edge schema
 
@@ -194,6 +206,15 @@ flowchart(container, {
 | `to` | `string` | yes | Target node id |
 | `label` | `string` | no | Edge label text |
 | `type` | `'solid' \| 'dashed'` | no | Default `'solid'` |
+
+#### Config fields
+
+| Field | Type | Required | Description |
+| ----- | ---- | -------- | ----------- |
+| `nodes` | `FlowNode[]` | yes | Graph nodes |
+| `edges` | `FlowEdge[]` | yes | Connections between nodes |
+| `direction` | `FlowDirection` | no | Default `'TB'` |
+| `groups` | `FlowchartGroup[]` | no | Subgraph containers (`{ id, title, parent? }`), referenced by each member node's `group` (see [Flowchart syntax](#flowchart-syntax)) |
 
 #### Direction
 
@@ -256,6 +277,7 @@ stateDiagram(container, {
 | `text` | `string` | yes | Display text |
 | `type` | `'default' \| 'start' \| 'end'` | no | `start` renders a filled circle, `end` renders a circle with inner dot |
 | `highlight` | `boolean \| 'red' \| 'green'` | no | Accent color |
+| `group` | `string` | no | Id of the enclosing composite state, from `groups` |
 
 #### Transition schema
 
@@ -265,11 +287,20 @@ stateDiagram(container, {
 | `to` | `string` | yes | Target state id |
 | `label` | `string` | no | Transition label |
 
+#### Config fields
+
+| Field | Type | Required | Description |
+| ----- | ---- | -------- | ----------- |
+| `states` | `StateNode[]` | yes | States in the machine |
+| `transitions` | `StateTransition[]` | yes | Transitions between states |
+| `initial` | `string` | no | Entry state; drives the start dot and the BFS reveal order |
+| `groups` | `DiagramGroup[]` | no | Composite-state containers (`{ id, title, parent? }`), referenced by each member state's `group` (see [State diagram syntax](#state-diagram-syntax)) |
+
 #### Animation behaviour
 
 - States rendered as rounded rectangles
 - Start state has a filled circle before it, end state has a circle-in-circle after it
-- Transitions are curved arrows between states with labels; bidirectional pairs bow to opposite sides
+- Transitions are smoothed dagre-routed arrows between states with labels
 - Initial state appears first, then transitions draw one-by-one following BFS from initial state, each target state appearing as the transition reaches it
 - Self-transitions (from === to): loop arrow above the state
 
@@ -304,7 +335,7 @@ interface DiagramOptions {
 | `animate` | `boolean` | `true` | Set `false` to render final state immediately |
 | `trigger` | `'onScroll' \| 'immediate' \| 'manual'` | `'onScroll'` | When to start animation |
 | `advance` | `'auto' \| 'click'` | `'auto'` | Advance steps on click instead of a timer; on flowcharts, click a revealed node to expand its branches |
-| `keyboard` | `boolean` | `false` | Focused diagrams respond to arrow keys (step), Space (pause/resume), Home/End |
+| `keyboard` | `boolean` | `false` | Focused diagrams respond to arrow keys (←/→/↑/↓ step), Space (pause/resume), Home/End, Enter (play). Inert when the diagram doesn't animate (`animate: false`, or reduced motion) |
 | `stepDuration` | `number` | `400` | Milliseconds per step animation |
 | `stepDelay` | `number` | `100` | Milliseconds between steps |
 | `replayOnScroll` | `boolean` | `true` | Replay animation when diagram re-enters viewport |
@@ -366,7 +397,7 @@ The intro still reveals on whatever `trigger` fires (immediate on render, on scr
 - **Sequence and state diagrams** advance one step per click anywhere on the diagram — a lightweight "next" control with no buttons to build.
 - **Flowcharts** work differently: revealed nodes become clickable (cursor turns to a pointer). Clicking a revealed node animates in its outgoing edges and whatever nodes they lead to, so the viewer walks the graph branch by branch. Clicking empty space, or a node that isn't revealed yet, does nothing.
 
-`onComplete` fires once every step has been revealed by clicking; `onStepStart` still fires per step as it's revealed. Reduced-motion and `animate: false` are unaffected — they always show the final state immediately, ignoring `advance`.
+`onComplete` fires once every step has been revealed by clicking; `onStepStart` still fires per step as it's revealed. `pause()` and `resume()` are inert in click mode — nothing runs on a timer to pause, and a stray `resume()` must not start timed playback behind the viewer's back. Reduced-motion and `animate: false` are unaffected — they always show the final state immediately, ignoring `advance`.
 
 ### Controller (returned from all functions)
 
@@ -400,9 +431,9 @@ The parser aims for compatibility with Mermaid's syntax as documented at mermaid
 
 - `actor` and `participant` declarations, including `participant A as Alias`
 - `A->>B: message` (solid arrow), `A-->>B: message` (dashed arrow)
-- `A->B: message` and `A-->B: message` (open arrows)
+- `A->B: message` and `A-->B: message` (open arrows — rendered with the same filled arrowhead as `->>` / `-->>`)
 - `A-xB: message` (failed) and `A--xB: message` (failed dashed) — failed messages render an X terminator
-- `Note over A: text`, `Note over A,B: text`, `Note left of A:`, `Note right of A:`
+- `Note over A: text`, `Note over A,B: text`, `Note left of A:`, `Note right of A:` (all four rendered as a note box over the actor(s))
 - `alt`/`else`/`end`, `opt`/`end`, `loop`/`end`, `par`/`and`/`end` frames — rendered as labeled boxes around their contained steps, appearing when their first contained step animates
 - `activate A` / `deactivate A`, and the `A->>+B: message` / `A-->>-B: message` shorthand — rendered as activation bars on the target/source lifeline
 
@@ -410,7 +441,7 @@ The parser aims for compatibility with Mermaid's syntax as documented at mermaid
 
 - `flowchart TD/LR/BT/RL` (and `graph`)
 - Node shapes: `[text]`, `(text)`, `{text}`, `([text])`, `((text))`
-- Edge styles: `-->`, `---`, `-.->`, `==>` with optional `|label|`
+- Edge styles: `-->`, `---`, `-.->`, `==>` with optional `|label|` (only `-.->` renders distinctly, as a dashed arrow; `---` and `==>` render as a plain solid arrow)
 - Quoted labels (`a["text with --> arrows"]`) are protected from the edge parser
 - `subgraph title` / `end` containers — rendered as a labeled box around their member nodes, appearing when the first member node appears
 
@@ -428,7 +459,10 @@ A few constructs render with intentionally simplified semantics rather than full
 
 - Activation bars appear at full height with their opening step, rather than growing incrementally as nested messages occur
 - Message arrows don't shift their endpoints onto activation bars — they still anchor to the lifeline
-- Flowchart edges that target a subgraph id (rather than a node inside it) are dropped
+- Arrowheads carry no style of their own: open (`->`), plain-link (`---`) and thick (`==>`) arrows all render with the same filled arrowhead and stroke weight as `->>` / `-->`. Only the dashed forms (`-->>`, `-.->`) look different
+- `Note left of` / `Note right of` render as a note over the actor rather than beside it
+- Subgraph and composite-state membership is first-mention-wins: a node first referenced *outside* the container stays outside it, even if it's also referenced inside. Declare a node inside its container the first time it appears to place it there
+- Flowchart edges with a subgraph id at either end (rather than a node inside it) are dropped
 - State transitions to/from a composite state are re-targeted to that composite's first child state
 - `par`/`and` sections animate in document order, not concurrently
 
@@ -509,7 +543,7 @@ An element carrying both markers is still rendered exactly once. A diagram that 
 
 - TypeScript source, ships ESM + CJS + a browser global build
 - One dependency: [`@dagrejs/dagre`](https://github.com/dagrejs/dagre) (the same layout engine Mermaid uses) — external in the ESM/CJS builds (resolved from `node_modules` like any other dependency), bundled into the browser-global build since it has no module resolution of its own
-- Tree-shakeable: `import { sequence }` only pulls in the sequence renderer (ESM/CJS builds only — dagre is still a separate resolved import)
+- Tree-shakeable: `import { sequence }` only pulls in the sequence renderer (ESM build only — the CJS build's `require` interop defeats shaking, and dagre stays a separate resolved import in either case)
 - Browser global: `window.AnimatedMermaidDiagrams` via `dist/animated-mermaid-diagrams.umd.js` (an IIFE build for `<script>` tags; it does not register with AMD/CommonJS loaders)
 - Bundle size: ~30KB gzipped for the browser-global build (all diagram types, dagre included) — most of that is dagre itself; the ESM/CJS builds are far smaller since dagre stays an external import there
 - Mermaid parser is a lightweight subset parser — does NOT depend on the mermaid package
@@ -517,11 +551,11 @@ An element carrying both markers is still rendered exactly once. A diagram that 
 ## Accessibility
 
 - Respects `prefers-reduced-motion: reduce` — skips animations, renders final state immediately
-- SVG includes `role="img"` and `aria-label` derived from the diagram content
+- Non-interactive diagrams expose `role="img"` with an `aria-label` derived from the diagram content (participant/node/state names and step counts)
 - All text is selectable
-- Body text in both built-in themes meets WCAG AA contrast. Some accent graphics (arrows, node borders) and the dark theme's note text sit slightly below the strictest thresholds — pass a custom `ThemeTokens` object where full AA graphics contrast is required
-- `advance: 'click'` diagrams are keyboard-operable out of the box (revealed nodes/the diagram itself are focusable and respond to Enter/Space); set `keyboard: true` on any other diagram to add full arrow-key/Space/Home/End transport control
-- Interactive diagrams expose slider semantics (`aria-valuenow` reflects the current step) and keep keyboard focus moving along the walk in click-to-explore (flowchart node) mode
+- Body text in both built-in themes meets WCAG AA contrast, except the dark theme's note and frame-label text (4.04:1 against `noteBackground`, just under the 4.5:1 threshold). Several accent graphics fall below the 3:1 non-text threshold: in the light theme, response and highlight arrows (2.54:1) and note/frame borders (1.23:1); in the dark theme, note/frame borders (2.36:1) and node borders against `nodeBackground` (2.56:1). Pass a custom `ThemeTokens` object where full AA contrast is required
+- `advance: 'click'` diagrams are keyboard-operable out of the box (revealed nodes/the diagram itself are focusable and respond to Enter/Space); set `keyboard: true` on any other animating diagram to add full arrow-key/Space/Home/End/Enter transport control — it is inert under `animate: false` or reduced motion, where every step is already visible
+- Linear-step diagrams (keyboard transport, and sequence/state click mode) expose slider semantics: `role="slider"` with `aria-valuenow`/`aria-valuetext` reflecting the current step. Flowchart click-to-explore is non-linear, so its SVG stays `role="img"` and the revealed nodes carry `role="button"` instead; keyboard activation moves focus along the walk to the next clickable node
 
 ## Browser Support
 
