@@ -221,4 +221,73 @@ describe('graphLayout', () => {
     expect(r.clusters).toEqual([])
     expect(r.nodes.size).toBe(2)
   })
+
+  it('degrades a 2-cycle group nesting (a.parent=b, b.parent=a) to top-level, without throwing', () => {
+    const cyclic: GraphGroupIn[] = [
+      { id: 'a', parent: 'b' },
+      { id: 'b', parent: 'a' },
+    ]
+    const flat: GraphGroupIn[] = [{ id: 'a' }, { id: 'b' }]
+    const nodesIn = [box('n1'), box('n2')]
+    const nodeGroup = new Map([
+      ['n1', 'a'],
+      ['n2', 'b'],
+    ])
+    expect(() => graphLayout(nodesIn, [], 'TB', cyclic, nodeGroup)).not.toThrow()
+    const rCyclic = graphLayout(nodesIn, [], 'TB', cyclic, nodeGroup)
+    // A cyclic parent chain must degrade to the same layout as no nesting at
+    // all — proof that setParent was never called with the cyclic link.
+    const rFlat = graphLayout(nodesIn, [], 'TB', flat, nodeGroup)
+    expect(rCyclic.width).toBe(rFlat.width)
+    expect(rCyclic.height).toBe(rFlat.height)
+    expect(rCyclic.clusters).toEqual(rFlat.clusters)
+    contains(rCyclic.clusters.find((c) => c.id === 'a')!, rCyclic.nodes.get('n1')!)
+    contains(rCyclic.clusters.find((c) => c.id === 'b')!, rCyclic.nodes.get('n2')!)
+  })
+
+  it('degrades a 3-cycle group nesting (a→b→c→a) to top-level, without throwing', () => {
+    const cyclic: GraphGroupIn[] = [
+      { id: 'a', parent: 'b' },
+      { id: 'b', parent: 'c' },
+      { id: 'c', parent: 'a' },
+    ]
+    const flat: GraphGroupIn[] = [{ id: 'a' }, { id: 'b' }, { id: 'c' }]
+    const nodesIn = [box('n1'), box('n2'), box('n3')]
+    const nodeGroup = new Map([
+      ['n1', 'a'],
+      ['n2', 'b'],
+      ['n3', 'c'],
+    ])
+    expect(() => graphLayout(nodesIn, [], 'TB', cyclic, nodeGroup)).not.toThrow()
+    const rCyclic = graphLayout(nodesIn, [], 'TB', cyclic, nodeGroup)
+    const rFlat = graphLayout(nodesIn, [], 'TB', flat, nodeGroup)
+    expect(rCyclic.width).toBe(rFlat.width)
+    expect(rCyclic.height).toBe(rFlat.height)
+    expect(rCyclic.clusters).toEqual(rFlat.clusters)
+    for (const [nodeId, groupId] of nodeGroup) {
+      contains(rCyclic.clusters.find((c) => c.id === groupId)!, rCyclic.nodes.get(nodeId)!)
+    }
+  })
+
+  it('degrades a valid chain hanging off a cycle (c.parent=a, a/b cyclic) to top-level too', () => {
+    const cyclic: GraphGroupIn[] = [
+      { id: 'a', parent: 'b' },
+      { id: 'b', parent: 'a' },
+      { id: 'c', parent: 'a' }, // c's chain (c→a→b→a…) never terminates
+    ]
+    const flat: GraphGroupIn[] = [{ id: 'a' }, { id: 'b' }, { id: 'c' }]
+    const nodesIn = [box('n1'), box('n2'), box('n3')]
+    const nodeGroup = new Map([
+      ['n1', 'a'],
+      ['n2', 'b'],
+      ['n3', 'c'],
+    ])
+    expect(() => graphLayout(nodesIn, [], 'TB', cyclic, nodeGroup)).not.toThrow()
+    const rCyclic = graphLayout(nodesIn, [], 'TB', cyclic, nodeGroup)
+    const rFlat = graphLayout(nodesIn, [], 'TB', flat, nodeGroup)
+    expect(rCyclic.width).toBe(rFlat.width)
+    expect(rCyclic.height).toBe(rFlat.height)
+    expect(rCyclic.clusters).toEqual(rFlat.clusters)
+    contains(rCyclic.clusters.find((c) => c.id === 'c')!, rCyclic.nodes.get('n3')!)
+  })
 })

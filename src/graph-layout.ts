@@ -89,6 +89,38 @@ export function graphLayout(
   // byte-stable with pre-Task-4 output.
   const compound = validGroupIds.size > 0
 
+  // Defensive: a cyclic parent chain (a.parent=b, b.parent=a, or a longer
+  // loop) would make dagre's setParent throw synchronously — verified
+  // empirically ("Setting a as parent of b would create a cycle"). Resolve
+  // each group's *safe* parent up front: walk the declared parent chain with
+  // a seen-set, and only treat the direct parent as usable when the full
+  // chain terminates (reaches a group with no further parent) without
+  // revisiting a node. A group anywhere on an unterminated chain — including
+  // one merely hanging off a cycle it isn't part of — degrades to top-level
+  // rather than throwing. Used both for the setParent calls below and for
+  // the recursive cluster-layer computation, so the two stay consistent.
+  const declaredParent = new Map<string, string | undefined>()
+  for (const gr of validGroups) {
+    declaredParent.set(gr.id, gr.parent && validGroupIds.has(gr.parent) ? gr.parent : undefined)
+  }
+  const safeParentCache = new Map<string, string | undefined>()
+  const safeParent = (id: string): string | undefined => {
+    if (safeParentCache.has(id)) return safeParentCache.get(id)
+    const seen = new Set<string>()
+    let cur: string | undefined = id
+    while (cur !== undefined) {
+      if (seen.has(cur)) {
+        safeParentCache.set(id, undefined)
+        return undefined
+      }
+      seen.add(cur)
+      cur = declaredParent.get(cur)
+    }
+    const result = declaredParent.get(id)
+    safeParentCache.set(id, result)
+    return result
+  }
+
   // Skip edges with unresolved endpoints. Self-edges are excluded from the
   // dagre graph entirely — renderers draw those with their own custom loop
   // path and only need the node's own layer for animation grouping. Edges
@@ -116,7 +148,8 @@ export function graphLayout(
       }
     }
     for (const gr of validGroups) {
-      if (gr.parent && validGroupIds.has(gr.parent)) g.setParent(gr.id, gr.parent)
+      const parent = safeParent(gr.id)
+      if (parent) g.setParent(gr.id, parent)
     }
   }
 
@@ -189,10 +222,11 @@ export function graphLayout(
   // nodes).
   const childGroups = new Map<string, string[]>()
   for (const gr of validGroups) {
-    if (gr.parent && validGroupIds.has(gr.parent)) {
-      const siblings = childGroups.get(gr.parent) ?? []
+    const parent = safeParent(gr.id)
+    if (parent) {
+      const siblings = childGroups.get(parent) ?? []
       siblings.push(gr.id)
-      childGroups.set(gr.parent, siblings)
+      childGroups.set(parent, siblings)
     }
   }
   const directMembers = new Map<string, string[]>()
