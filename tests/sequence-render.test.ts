@@ -50,14 +50,15 @@ describe('buildSequenceSvg', () => {
   })
 
   it('renders highlighted steps with the highlight color', () => {
-    const highlighted = [...svg.querySelectorAll('line')].filter(
-      (l) => l.getAttribute('stroke') === lightTheme.highlight,
+    // lightTheme.highlight and lightTheme.lineResponse share the same hex,
+    // so a built-in theme can't isolate the override — use a custom theme
+    // whose highlight color is unique.
+    const custom = { ...lightTheme, highlight: '#ff00aa' }
+    const { svg: hsvg } = buildSequenceSvg(CONFIG, resolveOptions({ theme: custom }))
+    const highlighted = [...hsvg.querySelectorAll('line')].filter(
+      (l) => l.getAttribute('stroke') === '#ff00aa',
     )
-    // lightTheme.highlight and lightTheme.lineResponse are the same literal
-    // color, so the non-highlighted response step ("Returns list") also
-    // matches here alongside the highlighted one ("Done"). This is a
-    // property of the (frozen) theme tokens, not the renderer.
-    expect(highlighted).toHaveLength(2)
+    expect(highlighted).toHaveLength(1)
   })
 
   it('renders a note rect', () => {
