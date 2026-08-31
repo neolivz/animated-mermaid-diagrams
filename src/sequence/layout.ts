@@ -68,12 +68,12 @@ export function layoutSequence(actors: SequenceActor[], steps: SequenceStep[]): 
     }
   }
 
-  // Self-message loop + label must clear the next lifeline.
+  // Self-message loop + label must clear the next actor's box.
   for (const s of steps) {
     if (s.type === 'note' || s.from === undefined || s.from !== s.to) continue
     const i = index.get(s.from)
     if (i === undefined || i >= gaps.length) continue
-    const needed = selfReach(s) + SELF_CLEARANCE
+    const needed = selfReach(s) + widths[i + 1] / 2 + SELF_CLEARANCE
     const span = xs[i + 1] - xs[i]
     if (needed > span) {
       gaps[i] += needed - span

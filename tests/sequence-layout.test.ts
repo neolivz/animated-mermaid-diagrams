@@ -68,10 +68,12 @@ describe('layoutSequence', () => {
     expect(long.actors[1].x - long.actors[0].x).toBeGreaterThanOrEqual(estimateTextWidth(text, 13) + 16)
   })
 
-  it('keeps middle-actor self-message loops clear of the next lifeline', () => {
+  it('keeps middle-actor self-message loops clear of the next actor box', () => {
     const text = 'validates cached credentials'
     const L = layoutSequence(actors, [{ from: 'a', to: 'a', text }])
-    expect(L.actors[1].x - L.actors[0].x).toBeGreaterThanOrEqual(48 + estimateTextWidth(text, 13) + 8 + 20)
+    const labelEnd = L.actors[0].x + 48 + estimateTextWidth(text, 13) + 8
+    const nextBoxLeft = L.actors[1].x - L.actors[1].w / 2
+    expect(nextBoxLeft).toBeGreaterThanOrEqual(labelEnd + 20)
   })
 
   it('folds wide notes into the bounds and shifts content right when they overhang', () => {
