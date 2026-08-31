@@ -92,8 +92,14 @@ describe('parseFlowchart', () => {
     expect(c.edges).toEqual([])
   })
 
-  it('does not corrupt node text that resembles a mask placeholder', () => {
-    const c = parseFlowchart('flowchart TD\n  a[item 0 ok] --> b')
-    expect(c.nodes[0].text).toBe('item 0 ok')
+  it('does not corrupt node text containing literal NUL bytes around digits', () => {
+    const nul = String.fromCharCode(0)
+    const c = parseFlowchart(`flowchart TD\n  a[item ${nul}0${nul} ok] --> b`)
+    expect(c.nodes[0].text).toBe(`item ${nul}0${nul} ok`)
+  })
+
+  it('strips surrounding quotes from edge labels', () => {
+    const c = parseFlowchart('flowchart TD\n  a -->|"weird | label"| b')
+    expect(c.edges[0]).toEqual({ from: 'a', to: 'b', label: 'weird | label', type: 'solid' })
   })
 })

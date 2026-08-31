@@ -54,7 +54,7 @@ export function parseFlowchart(text: string): FlowchartConfig {
       return '\u0000' + (quoted.length - 1) + '\u0000'
     })
     const unmask = (s: string): string =>
-      s.replace(/\u0000(\d+)\u0000/g, (_, i: string) => quoted[Number(i)])
+      s.replace(/\u0000(\d+)\u0000/g, (m, i: string) => quoted[Number(i)] ?? m)
     const parts = masked.split(EDGE_SPLIT)
     if (parts.length === 1) {
       ensure(unmask(parts[0]))
@@ -67,7 +67,7 @@ export function parseFlowchart(text: string): FlowchartConfig {
       const to = ensure(unmask(parts[i + 3]))
       if (from !== null && to !== null && arrow !== undefined) {
         const edge: FlowEdge = { from, to, type: arrow === '-.->' ? 'dashed' : 'solid' }
-        if (label) edge.label = label
+        if (label) edge.label = label.replace(/^"(.*)"$/, '$1')
         edges.push(edge)
       }
     }
