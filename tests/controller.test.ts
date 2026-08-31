@@ -134,4 +134,33 @@ describe('createDiagram', () => {
     createDiagram(container, svg, steps, resolveOptions({ trigger: 'immediate' }))
     expect(els[2].style.opacity).toBe('') // no animation, final state
   })
+
+  it('controller methods are safe no-ops after destroy()', () => {
+    const { container, svg, els, steps } = fixture()
+    const ctrl = createDiagram(container, svg, steps, resolveOptions({ trigger: 'manual' }))
+    ctrl.destroy()
+    ctrl.play()
+    ctrl.goToStep(2)
+    expect(container.firstChild).toBeNull()
+    expect(els[0].style.opacity).toBe('0')
+  })
+
+  it('trigger:manual with animate:false shows the final state immediately', () => {
+    const { container, svg, els, steps } = fixture()
+    createDiagram(container, svg, steps, resolveOptions({ trigger: 'manual', animate: false }))
+    expect(els[2].style.opacity).toBe('')
+  })
+
+  it('wires pause/resume through to the animator', () => {
+    const { container, svg, steps } = fixture()
+    const onStepStart = vi.fn()
+    const ctrl = createDiagram(container, svg, steps, resolveOptions({ trigger: 'immediate', onStepStart }))
+    vi.advanceTimersByTime(200)
+    ctrl.pause()
+    vi.advanceTimersByTime(5000)
+    expect(onStepStart).toHaveBeenCalledTimes(1)
+    ctrl.resume()
+    vi.advanceTimersByTime(300)
+    expect(onStepStart).toHaveBeenCalledTimes(2)
+  })
 })
