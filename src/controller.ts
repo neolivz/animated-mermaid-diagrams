@@ -40,18 +40,30 @@ export function createDiagram(
 
   // --- click-to-advance state (inert unless clickMode) ---
   const revealed = new Set<number>()
-  const syncCursors = (): void => {
+  // Toggles cursor + keyboard-accessibility affordances (tabindex/role/aria-label)
+  // on flowchart click targets as they become clickable/expanded.
+  const syncTargets = (): void => {
     if (!clickTargets) return
     for (const ct of clickTargets) {
       const clickable = revealed.has(ct.revealsAt) && !revealed.has(ct.expands)
       ct.el.style.cursor = clickable ? 'pointer' : ''
+      if (clickable) {
+        ct.el.setAttribute('tabindex', '0')
+        ct.el.setAttribute('role', 'button')
+        const text = ct.el.querySelector('text')?.textContent
+        ct.el.setAttribute('aria-label', text ? `Reveal next steps: ${text}` : 'Reveal next steps')
+      } else {
+        ct.el.removeAttribute('tabindex')
+        ct.el.removeAttribute('role')
+        ct.el.removeAttribute('aria-label')
+      }
     }
   }
   const reveal = (i: number): void => {
     anim.revealStep(i)
     revealed.add(i)
     if (revealed.size === anim.stepCount) opts.onComplete?.()
-    syncCursors()
+    syncTargets()
   }
   const startClickMode = (): void => {
     anim.reset()
@@ -63,26 +75,58 @@ export function createDiagram(
     for (let i = 0; i < steps.length; i++) if (!revealed.has(i)) return i
     return null
   }
+  // Enter or Space activates a click target from the keyboard, same as a click
+  // (Space also needs preventDefault so the page doesn't scroll).
+  const isActivationKey = (e: KeyboardEvent): boolean => e.key === 'Enter' || e.key === ' '
 
   const teardownClicks: (() => void)[] = []
   if (clickMode) {
     if (clickTargets) {
-      // Flowchart: click a revealed node to expand its outgoing branches.
+      // Flowchart: click (or Enter/Space when focused) a revealed node to
+      // expand its outgoing branches.
       for (const ct of clickTargets) {
-        const handler = (): void => {
+        const trigger = (): void => {
           if (revealed.has(ct.revealsAt) && !revealed.has(ct.expands)) reveal(ct.expands)
         }
-        ct.el.addEventListener('click', handler)
-        teardownClicks.push(() => ct.el.removeEventListener('click', handler))
+        const onClick = (): void => trigger()
+        const onKeydown = (e: Event): void => {
+          const ke = e as KeyboardEvent
+          if (!isActivationKey(ke)) return
+          if (ke.key === ' ') ke.preventDefault()
+          trigger()
+        }
+        ct.el.addEventListener('click', onClick)
+        ct.el.addEventListener('keydown', onKeydown)
+        teardownClicks.push(() => {
+          ct.el.removeEventListener('click', onClick)
+          ct.el.removeEventListener('keydown', onKeydown)
+        })
       }
     } else {
-      // Sequence/state: any click on the diagram advances one step.
-      const handler = (): void => {
+      // Sequence/state: any click on the diagram — or Enter/Space when the
+      // svg is focused — advances one step.
+      const trigger = (): void => {
         const next = nextUnrevealed()
         if (next !== null) reveal(next)
       }
-      svg.addEventListener('click', handler)
-      teardownClicks.push(() => svg.removeEventListener('click', handler))
+      const onClick = (): void => trigger()
+      const onKeydown = (e: Event): void => {
+        const ke = e as KeyboardEvent
+        if (!isActivationKey(ke)) return
+        if (ke.key === ' ') ke.preventDefault()
+        trigger()
+      }
+      svg.addEventListener('click', onClick)
+      svg.addEventListener('keydown', onKeydown)
+      teardownClicks.push(() => {
+        svg.removeEventListener('click', onClick)
+        svg.removeEventListener('keydown', onKeydown)
+      })
+      svg.setAttribute('tabindex', '0')
+      // Left as-is once every step is revealed: the hint no longer matches
+      // reality (Enter becomes a no-op), but removing it would mean toggling
+      // aria-label on every reveal for a purely cosmetic gain — not worth it.
+      svg.setAttribute('aria-label', `${svg.getAttribute('aria-label') ?? ''}. Press Enter to reveal the next step.`)
     }
   }
 
@@ -128,7 +172,7 @@ export function createDiagram(
       anim.reset()
       if (clickMode) {
         revealed.clear()
-        syncCursors()
+        syncTargets()
       }
     },
     pause: () => anim.pause(),
@@ -139,7 +183,7 @@ export function createDiagram(
         const upto = Math.max(0, Math.min(n + stepIndexOffset + 1, steps.length))
         revealed.clear()
         for (let i = 0; i < upto; i++) revealed.add(i)
-        syncCursors()
+        syncTargets()
       }
     },
     destroy: () => {

@@ -306,7 +306,7 @@ interface DiagramOptions {
 | `stepDuration` | `number` | `400` | Milliseconds per step animation |
 | `stepDelay` | `number` | `100` | Milliseconds between steps |
 | `replayOnScroll` | `boolean` | `true` | Replay animation when diagram re-enters viewport |
-| `width` | `number \| '100%'` | `'100%'` | SVG width (responsive by default) |
+| `width` | `number \| '100%'` | `'100%'` | SVG width — responsive by default, up to the diagram's natural size (never scales up past it, like Mermaid) |
 | `height` | `number \| 'auto'` | `'auto'` | SVG height (fits content by default) |
 | `padding` | `number` | `40` | Padding inside SVG in px |
 | `fontFamily` | `string` | `'system-ui, sans-serif'` | Font for all text |

@@ -190,6 +190,24 @@ describe('createDiagram', () => {
     expect(els[1].style.opacity).toBe('0') // unchanged — listener was removed
   })
 
+  it('advance:click keydown Enter on the svg advances a step, keeps a tab stop, and stops after destroy', () => {
+    const { container, svg, els, steps } = fixture()
+    const ctrl = createDiagram(
+      container, svg, steps,
+      resolveOptions({ trigger: 'immediate', advance: 'click' }),
+      1,
+    )
+    expect(svg.getAttribute('tabindex')).toBe('0')
+    expect(svg.getAttribute('aria-label') ?? '').toContain('Press Enter to reveal the next step.')
+
+    svg.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+    expect(els[1].style.opacity).toBe('')
+
+    ctrl.destroy()
+    svg.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+    expect(els[2].style.opacity).toBe('0') // unchanged — listener was removed
+  })
+
   it('wires pause/resume through to the animator', () => {
     const { container, svg, steps } = fixture()
     const onStepStart = vi.fn()

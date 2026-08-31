@@ -282,4 +282,32 @@ describe("advance: 'click'", () => {
 
     ctrl.destroy()
   })
+
+  it('a clickable node is a focusable button and loses that once expanded; Space reveals its branch', () => {
+    const container = document.createElement('div')
+    const ctrl = flowchart(container, { ...CONFIG, options: { advance: 'click', trigger: 'immediate' } })
+    const groupFor = (text: string): SVGGElement =>
+      ([...container.querySelectorAll('text')].find((t) => t.textContent === text)!.closest('g') as SVGGElement)
+    const startGroup = groupFor('Navigate')
+    const checkGroup = groupFor('Editable?')
+
+    expect(startGroup.getAttribute('tabindex')).toBe('0')
+    expect(startGroup.getAttribute('role')).toBe('button')
+    expect(checkGroup.getAttribute('tabindex')).toBeNull() // not revealed yet
+
+    // Space activates the focused root the same as a click.
+    startGroup.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }))
+    expect(checkGroup.style.opacity).toBe('')
+
+    // Fully expanded now: no longer a button.
+    expect(startGroup.getAttribute('tabindex')).toBeNull()
+    expect(startGroup.getAttribute('role')).toBeNull()
+    // `check` became clickable once revealed.
+    expect(checkGroup.getAttribute('tabindex')).toBe('0')
+    expect(checkGroup.getAttribute('role')).toBe('button')
+
+    ctrl.destroy()
+    checkGroup.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+    // no assertion needed beyond "doesn't throw" — destroy() removed the listener
+  })
 })

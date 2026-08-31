@@ -57,6 +57,7 @@ describe('svgRoot', () => {
     expect(svg.getAttribute('role')).toBe('img')
     expect(svg.getAttribute('aria-label')).toBe('My diagram')
     expect(svg.style.width).toBe('100%')
+    expect(svg.style.maxWidth).toBe('300px')
     const bg = svg.firstChild as SVGRectElement
     expect(bg.getAttribute('fill')).toBe('#ffffff')
   })
@@ -66,6 +67,7 @@ describe('svgRoot', () => {
     const svg = svgRoot(300, 200, opts, 'x')
     expect(svg.getAttribute('width')).toBe('640')
     expect(svg.getAttribute('height')).toBe('480')
+    expect(svg.style.maxWidth).toBe('')
   })
 
   it('honors numeric height with responsive width', () => {

@@ -79,6 +79,9 @@ export function svgRoot(
   })
   if (opts.width === '100%') {
     svg.style.width = '100%'
+    // Shrink to fit a narrow container, but never scale up past the
+    // diagram's own natural pixel size — matches Mermaid's behavior.
+    svg.style.maxWidth = `${w}px`
     if (opts.height === 'auto') svg.style.height = 'auto'
     else svg.setAttribute('height', String(opts.height))
   } else {
