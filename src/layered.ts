@@ -82,6 +82,36 @@ export function layeredLayout(
   for (const i of items) raw[rank.get(i.id)!].push(i.id)
   let layers = raw.filter((l) => l.length > 0)
   if (direction === 'BT' || direction === 'RL') layers = [...layers].reverse()
+
+  // Barycenter ordering: place each node near the mean position of its
+  // neighbors in the adjacent layer to reduce edge crossings (3 sweeps).
+  const layerOf = new Map<string, number>()
+  const indexIn = new Map<string, number>()
+  layers.forEach((ids, li) => ids.forEach((id, i) => { layerOf.set(id, li); indexIn.set(id, i) }))
+  const adjacency = new Map<string, string[]>(items.map((i) => [i.id, []]))
+  for (const e of edges) {
+    if (e.from === e.to || !adjacency.has(e.from) || !adjacency.has(e.to)) continue
+    adjacency.get(e.from)!.push(e.to)
+    adjacency.get(e.to)!.push(e.from)
+  }
+  for (let sweep = 0; sweep < 3; sweep++) {
+    const downward = sweep % 2 === 0
+    const indices = downward
+      ? Array.from({ length: layers.length - 1 }, (_, k) => k + 1)
+      : Array.from({ length: layers.length - 1 }, (_, k) => layers.length - 2 - k)
+    for (const li of indices) {
+      const ref = downward ? li - 1 : li + 1
+      const scored = layers[li].map((id, i) => {
+        const ns = (adjacency.get(id) ?? []).filter((n) => layerOf.get(n) === ref)
+        const score = ns.length === 0 ? i : ns.reduce((sum, n) => sum + indexIn.get(n)!, 0) / ns.length
+        return { id, score, i }
+      })
+      scored.sort((a, b) => a.score - b.score || a.i - b.i)
+      layers[li] = scored.map((x) => x.id)
+      layers[li].forEach((id, i) => indexIn.set(id, i))
+    }
+  }
+
   const horizontal = direction === 'LR' || direction === 'RL'
   const size = new Map(items.map((i) => [i.id, i]))
 

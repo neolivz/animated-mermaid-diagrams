@@ -147,3 +147,38 @@ describe('self-edges and label overflow', () => {
     expect(vw).toBeGreaterThanOrEqual(estimateTextWidth(label, 12) + 12 + 80)
   })
 })
+
+describe('multi-tier and bidirectional edge routing', () => {
+  it('routes multi-tier edges around intermediate rows via a side apex', () => {
+    const cfg: FlowchartConfig = {
+      nodes: [{ id: 'a', text: 'A' }, { id: 'b', text: 'B' }, { id: 'c', text: 'C' }],
+      edges: [
+        { from: 'a', to: 'b' },
+        { from: 'b', to: 'c' },
+        { from: 'a', to: 'c' }, // spans 2 layers
+      ],
+      direction: 'TB',
+    }
+    const { svg: rsvg } = buildFlowchartSvg(cfg, opts)
+    const paths = [...rsvg.querySelectorAll('path')].filter((p) => p.getAttribute('fill') === 'none')
+    const long = paths[2].getAttribute('d')! // third edge, appended in config order
+    expect(long.match(/C/g)).toHaveLength(2) // two-segment side route
+  })
+
+  it('bows bidirectional edge pairs apart', () => {
+    const cfg: FlowchartConfig = {
+      nodes: [{ id: 'a', text: 'A' }, { id: 'b', text: 'B' }],
+      edges: [
+        { from: 'a', to: 'b' },
+        { from: 'b', to: 'a', type: 'dashed' },
+      ],
+      direction: 'TB',
+    }
+    const { svg: rsvg } = buildFlowchartSvg(cfg, opts)
+    const ds = [...rsvg.querySelectorAll('path')]
+      .filter((p) => p.getAttribute('fill') === 'none')
+      .map((p) => p.getAttribute('d'))
+    expect(ds[0]).not.toBe(ds[1])
+    expect(new Set(ds).size).toBe(2)
+  })
+})

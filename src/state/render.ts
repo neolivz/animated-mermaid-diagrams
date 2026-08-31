@@ -154,7 +154,7 @@ export function buildStateSvg(
     const hasReverse = config.transitions.some(
       (o) => o !== tr && o.from === tr.to && o.to === tr.from,
     )
-    const bow = hasReverse ? (tr.from < tr.to ? 28 : -28) : 0
+    let bow = hasReverse ? (tr.from < tr.to ? 28 : -28) : 0
     const labelDy = hasReverse ? (tr.from < tr.to ? -8 : 8) : 0
     // Long edges pass an intermediate row: park the label near the source end
     // (t=0.25) so it lands in a row gap instead of on a box.
@@ -167,8 +167,37 @@ export function buildStateSvg(
     // Stop the path at the arrowhead's base so the line flows into the arrow,
     // not underneath it into the box (head length = HEAD_LEN); head stays at (x2, y2).
     const endY = down ? y2 - HEAD_LEN : y2 + HEAD_LEN
+    if (layerSpan > 1) {
+      // Route around intermediate rows instead of through them.
+      const side = (x1 + x2) / 2 <= layout.width / 2 ? -1 : 1
+      bow += side * (44 + 6 * layerSpan)
+    }
+
+    let d: string
+    let mx: number
+    let my: number
+    if (layerSpan > 1) {
+      // Two-segment cubic through a side apex, both end tangents axis-aligned
+      // (so the arrowhead stays tangent-correct) — routes around intermediate
+      // rows instead of drawing straight through them.
+      const apexX = (x1 + x2) / 2 + bow
+      const midY = (y1 + endY) / 2
+      const q = Math.abs(endY - y1) * 0.25
+      d =
+        `M ${x1} ${y1} C ${x1} ${y1 + q}, ${apexX} ${midY - q}, ${apexX} ${midY} ` +
+        `C ${apexX} ${midY + q}, ${x2} ${endY - q}, ${x2} ${endY}`
+      trackX(apexX - 10, apexX + 10)
+      // Label sits at the apex — on the path (the joint between the two
+      // segments) and offset sideways clear of the intermediate row(s).
+      mx = apexX
+      my = midY
+    } else {
+      d = `M ${x1} ${y1} C ${x1 + bow} ${y1 + mid}, ${x2 + bow} ${y2 - mid}, ${x2} ${endY}`
+      mx = x1 + (x2 - x1) * t01 + bow
+      my = y1 + (y2 - y1) * t01 + labelDy + fanDy
+    }
     const path = el('path', {
-      d: `M ${x1} ${y1} C ${x1 + bow} ${y1 + mid}, ${x2 + bow} ${y2 - mid}, ${x2} ${endY}`,
+      d,
       fill: 'none', stroke: t.line, 'stroke-width': 2,
     })
     root.appendChild(path)
@@ -177,8 +206,6 @@ export function buildStateSvg(
     root.appendChild(head)
     anim.push({ el: head, kind: 'fade' })
     if (tr.label) {
-      const mx = x1 + (x2 - x1) * t01 + bow
-      const my = y1 + (y2 - y1) * t01 + labelDy + fanDy
       const lw = estimateTextWidth(tr.label, 12) + 12
       trackX(mx - lw / 2, mx + lw / 2)
       const g = el('g', {}, [

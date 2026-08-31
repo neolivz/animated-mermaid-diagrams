@@ -128,14 +128,20 @@ export function buildFlowchartSvg(
   const root = el('g')
   const labelLayer = el('g')
 
-  // Content hanging outside the node layout (label pills, self-loops) grows the
-  // canvas instead of clipping; the content group shifts right by extraLeft.
+  // Content hanging outside the node layout (label pills, self-loops, bowed
+  // multi-tier routes) grows the canvas instead of clipping; the content group
+  // shifts by extraLeft/extraTop.
   let extraLeft = 0
   let extraRight = 0
+  let extraTop = 0
   let extraBottom = 0
   const trackX = (x1: number, x2: number): void => {
     extraLeft = Math.max(extraLeft, -x1)
     extraRight = Math.max(extraRight, x2 - layout.width)
+  }
+  const trackY = (y1: number, y2: number): void => {
+    extraTop = Math.max(extraTop, -y1)
+    extraBottom = Math.max(extraBottom, y2 - layout.height)
   }
 
   // Edge elements first (paths render under nodes).
@@ -202,8 +208,56 @@ export function buildFlowchartSvg(
     const trimmed: EdgeAnchor = { ...a }
     if (horizontal) trimmed.x2 += a.angle === 0 ? -HEAD_LEN : HEAD_LEN
     else trimmed.y2 += a.angle === 90 ? -HEAD_LEN : HEAD_LEN
+
+    const layerSpan = Math.abs(e.layer - s.layer)
+    const hasReverse = config.edges.some(
+      (o) => o !== edge && o.from === edge.to && o.to === edge.from,
+    )
+    let bow = 0
+    if (hasReverse) bow += edge.from < edge.to ? 28 : -28
+    if (layerSpan > 1) {
+      // Route around intermediate rows instead of through them.
+      const mid = horizontal ? (a.y1 + a.y2) / 2 : (a.x1 + a.x2) / 2
+      const side = mid <= (horizontal ? layout.height : layout.width) / 2 ? -1 : 1
+      bow += side * (56 + 6 * layerSpan)
+    }
+
+    let d: string
+    let mx: number
+    let my: number
+    if (bow !== 0) {
+      // Two-segment cubic through a side apex, both end tangents axis-aligned
+      // (so arrowheads stay tangent-correct) — routes around intermediate rows
+      // and separates bidirectional pairs instead of overlapping/underlapping.
+      if (horizontal) {
+        const midX = (a.x1 + trimmed.x2) / 2
+        const apexY = (a.y1 + a.y2) / 2 + bow
+        const q = Math.abs(trimmed.x2 - a.x1) * 0.25
+        d =
+          `M ${a.x1} ${a.y1} C ${a.x1 + q} ${a.y1}, ${midX - q} ${apexY}, ${midX} ${apexY} ` +
+          `C ${midX + q} ${apexY}, ${trimmed.x2 - q} ${a.y2}, ${trimmed.x2} ${a.y2}`
+        trackY(apexY - 10, apexY + 10)
+        mx = midX
+        my = apexY
+      } else {
+        const midY = (a.y1 + trimmed.y2) / 2
+        const apexX = (a.x1 + a.x2) / 2 + bow
+        const q = Math.abs(trimmed.y2 - a.y1) * 0.25
+        d =
+          `M ${a.x1} ${a.y1} C ${a.x1} ${a.y1 + q}, ${apexX} ${midY - q}, ${apexX} ${midY} ` +
+          `C ${apexX} ${midY + q}, ${a.x2} ${trimmed.y2 - q}, ${a.x2} ${trimmed.y2}`
+        trackX(apexX - 10, apexX + 10)
+        mx = apexX
+        my = midY
+      }
+    } else {
+      d = edgePath(trimmed, horizontal)
+      mx = (a.x1 + a.x2) / 2
+      my = (a.y1 + a.y2) / 2
+    }
+
     const path = el('path', {
-      d: edgePath(trimmed, horizontal),
+      d,
       fill: 'none', stroke: t.line, 'stroke-width': 2, ...dashAttr,
     })
     root.appendChild(path)
@@ -212,8 +266,6 @@ export function buildFlowchartSvg(
     root.appendChild(head)
     anim.push({ el: head, kind: 'fade' })
     if (edge.label) {
-      const mx = (a.x1 + a.x2) / 2
-      const my = (a.y1 + a.y2) / 2
       const lw = estimateTextWidth(edge.label, 12) + 12
       trackX(mx - lw / 2, mx + lw / 2)
       const g = el('g', {}, [
@@ -255,12 +307,12 @@ export function buildFlowchartSvg(
 
   const pad = opts.padding
   const w = layout.width + extraLeft + extraRight + pad * 2
-  const h = layout.height + extraBottom + pad * 2
+  const h = layout.height + extraTop + extraBottom + pad * 2
   const label = `Flowchart with ${config.nodes.length} nodes (${config.nodes
     .map((n) => n.text)
     .join(', ')}) and ${config.edges.length} edges`
   const svg = svgRoot(w, h, opts, label)
-  root.setAttribute('transform', `translate(${pad + extraLeft},${pad})`)
+  root.setAttribute('transform', `translate(${pad + extraLeft},${pad + extraTop})`)
   svg.appendChild(root)
 
   return { svg, steps: steps.filter((st) => st.length > 0) }

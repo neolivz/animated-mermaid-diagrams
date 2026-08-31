@@ -73,6 +73,18 @@ describe('layeredLayout', () => {
     expect(r.items.get('a')!.w).toBe(100)
   })
 
+  it('orders children under their parents (barycenter)', () => {
+    const r = layeredLayout(
+      [box('a'), box('b'), box('b1'), box('a1')],
+      [
+        { from: 'a', to: 'a1' },
+        { from: 'b', to: 'b1' },
+      ],
+      'TB',
+    )
+    expect(r.layers[1]).toEqual(['a1', 'b1']) // declaration order was [b1, a1]
+  })
+
   it('reports total width and height covering all nodes', () => {
     const r = layeredLayout([box('a'), box('b'), box('c')], [
       { from: 'a', to: 'b' },
