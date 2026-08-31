@@ -43,6 +43,11 @@
   </section>
 
   <section>
+    <h2>State with composite</h2>
+    <div id="state-composite"></div>
+  </section>
+
+  <section>
     <h2>Click to explore (flowchart)</h2>
     <p>Click a revealed node to expand its outgoing branches — nothing plays on a timer.</p>
     <div id="flow-click"></div>
@@ -76,12 +81,18 @@ sequenceDiagram
         participant Backend
 
         User->>App: Click delete on item
+        activate Backend
         App->>Backend: GET resource usage
         Backend-->>App: Returns list with linked record
-        App-->>User: Show dialog with linked record
-        User->>App: Click the record link
-        Note over App: Router intercepts navigation
-        App-->>User: Record editor loads
+        deactivate Backend
+        alt item has links
+          App-->>User: Show dialog with linked record
+          User->>App: Click the record link
+          Note over App: Router intercepts navigation
+          App-->>User: Record editor loads
+        else no links
+          App-->>User: Delete immediately
+        end
     `)
 
     render(document.getElementById('seq-tiers'), `
@@ -115,10 +126,23 @@ sequenceDiagram
         B -->|no| D[Show read-only view]
     `)
 
+    render(document.getElementById('state-composite'), `
+      stateDiagram-v2
+        [*] --> Working
+        state Working {
+          [*] --> Loading
+          Loading --> Saving
+        }
+        Working --> Idle : done
+        Idle --> Working : start
+    `)
+
     render(document.getElementById('flow-click'), `
       flowchart TD
         S([Start]) --> B[Validate]
-        B --> T{OK?}
+        subgraph Validation
+          B --> T{OK?}
+        end
         T -->|no| N[Reject]
         T -->|yes| P[Process]
         P --> C((Done))

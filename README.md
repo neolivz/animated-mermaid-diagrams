@@ -401,6 +401,8 @@ The parser aims for compatibility with Mermaid's syntax as documented at mermaid
 - `A->B: message` and `A-->B: message` (open arrows)
 - `A-xB: message` (failed) and `A--xB: message` (failed dashed) — failed messages render an X terminator
 - `Note over A: text`, `Note over A,B: text`, `Note left of A:`, `Note right of A:`
+- `alt`/`else`/`end`, `opt`/`end`, `loop`/`end`, `par`/`and`/`end` frames — rendered as labeled boxes around their contained steps, appearing when their first contained step animates
+- `activate A` / `deactivate A`, and the `A->>+B: message` / `A-->>-B: message` shorthand — rendered as activation bars on the target/source lifeline
 
 ### Flowchart syntax
 
@@ -408,6 +410,7 @@ The parser aims for compatibility with Mermaid's syntax as documented at mermaid
 - Node shapes: `[text]`, `(text)`, `{text}`, `([text])`, `((text))`
 - Edge styles: `-->`, `---`, `-.->`, `==>` with optional `|label|`
 - Quoted labels (`a["text with --> arrows"]`) are protected from the edge parser
+- `subgraph title` / `end` containers — rendered as a labeled box around their member nodes, appearing when the first member node appears
 
 ### State diagram syntax
 
@@ -415,14 +418,23 @@ The parser aims for compatibility with Mermaid's syntax as documented at mermaid
 - `[*] -->` for initial/final states
 - `State1 --> State2 : label`
 - `state "Description" as s1`
+- Composite states (`state Name { ... }`) — rendered as a labeled box around their nested states
+
+### Simplifications
+
+A few constructs render with intentionally simplified semantics rather than full fidelity to Mermaid's behavior:
+
+- Activation bars appear at full height with their opening step, rather than growing incrementally as nested messages occur
+- Message arrows don't shift their endpoints onto activation bars — they still anchor to the lifeline
+- Flowchart edges that target a subgraph id (rather than a node inside it) are dropped
+- State transitions to/from a composite state are re-targeted to that composite's first child state
+- `par`/`and` sections animate in document order, not concurrently
 
 ### Recognized but not yet rendered (planned for v1.x)
 
 These constructs are parsed leniently and **silently skipped** — the rest of the diagram renders without them:
 
-- Sequence: `alt`/`else`/`end`, `opt`/`end`, `loop`/`end`, `par`/`and`/`end` frames (the messages inside them still render), `activate`/`deactivate` activation boxes, `autonumber`
-- Flowchart: `subgraph title`/`end` containers (their contents still render)
-- State: composite states (`state Name { ... }` — inner states/transitions render flattened, without the grouping box)
+- Sequence: `autonumber` (message numbering is not yet rendered)
 
 Other unsupported Mermaid features are silently ignored (the diagram renders without them). Future versions will expand coverage.
 
