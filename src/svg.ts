@@ -79,7 +79,8 @@ export function svgRoot(
   })
   if (opts.width === '100%') {
     svg.style.width = '100%'
-    svg.style.height = 'auto'
+    if (opts.height === 'auto') svg.style.height = 'auto'
+    else svg.setAttribute('height', String(opts.height))
   } else {
     svg.setAttribute('width', String(opts.width))
     if (opts.height !== 'auto') svg.setAttribute('height', String(opts.height))

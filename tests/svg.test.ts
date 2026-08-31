@@ -67,4 +67,19 @@ describe('svgRoot', () => {
     expect(svg.getAttribute('width')).toBe('640')
     expect(svg.getAttribute('height')).toBe('480')
   })
+
+  it('honors numeric height with responsive width', () => {
+    const opts = resolveOptions({ width: '100%', height: 480 })
+    const svg = svgRoot(300, 200, opts, 'x')
+    expect(svg.style.width).toBe('100%')
+    expect(svg.getAttribute('height')).toBe('480')
+    expect(svg.style.height).toBe('')
+  })
+
+  it('numeric width with auto height sets no height attribute', () => {
+    const opts = resolveOptions({ width: 640 })
+    const svg = svgRoot(300, 200, opts, 'x')
+    expect(svg.getAttribute('width')).toBe('640')
+    expect(svg.getAttribute('height')).toBeNull()
+  })
 })
