@@ -509,6 +509,7 @@ sequenceDiagram
 - All text is selectable
 - Body text in both built-in themes meets WCAG AA contrast. Some accent graphics (arrows, node borders) and the dark theme's note text sit slightly below the strictest thresholds — pass a custom `ThemeTokens` object where full AA graphics contrast is required
 - `advance: 'click'` diagrams are keyboard-operable out of the box (revealed nodes/the diagram itself are focusable and respond to Enter/Space); set `keyboard: true` on any other diagram to add full arrow-key/Space/Home/End transport control
+- Interactive diagrams expose slider semantics (`aria-valuenow` reflects the current step) and keep keyboard focus moving along the walk in click-to-explore (flowchart node) mode
 
 ## Browser Support
 

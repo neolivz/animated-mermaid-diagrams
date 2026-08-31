@@ -375,4 +375,79 @@ describe('createDiagram', () => {
 
     ctrl.destroy()
   })
+
+  it('keyboard:true svg exposes slider semantics (role, valuemin/max, valuenow/valuetext) that track ArrowRight/Home/End', () => {
+    const { container, svg, steps } = fixture()
+    const ctrl = createDiagram(
+      container, svg, steps,
+      resolveOptions({ trigger: 'manual', keyboard: true }),
+      1,
+    )
+    expect(svg.getAttribute('role')).toBe('slider')
+    expect(svg.getAttribute('aria-valuemin')).toBe('0')
+    expect(svg.getAttribute('aria-valuemax')).toBe('2') // userStepCount = 3 anim steps - offset 1
+    expect(svg.getAttribute('aria-valuenow')).toBe('0')
+    expect(svg.getAttribute('aria-valuetext')).toBe('step 0 of 2')
+
+    const key = (k: string): void => { svg.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true })) }
+
+    key('ArrowRight') // reveals anim step 0 (intro) — 0 user-facing steps so far
+    expect(svg.getAttribute('aria-valuenow')).toBe('0')
+    expect(svg.getAttribute('aria-valuetext')).toBe('step 0 of 2')
+
+    key('ArrowRight') // reveals anim step 1 (user-facing step 0)
+    expect(svg.getAttribute('aria-valuenow')).toBe('1')
+    expect(svg.getAttribute('aria-valuetext')).toBe('step 1 of 2')
+
+    key('Home')
+    expect(svg.getAttribute('aria-valuenow')).toBe('0')
+    expect(svg.getAttribute('aria-valuetext')).toBe('step 0 of 2')
+
+    key('End')
+    expect(svg.getAttribute('aria-valuenow')).toBe('2')
+    expect(svg.getAttribute('aria-valuetext')).toBe('step 2 of 2')
+
+    ctrl.destroy()
+  })
+
+  it('keyboard:true svg slider valuenow updates during play() (onStepStart-driven, fake timers)', () => {
+    const { container, svg, steps } = fixture()
+    const ctrl = createDiagram(
+      container, svg, steps,
+      resolveOptions({ trigger: 'immediate', keyboard: true }),
+      1,
+    )
+    // play() runs the intro (anim step 0) synchronously; it doesn't count as a user step.
+    expect(svg.getAttribute('aria-valuenow')).toBe('0')
+
+    vi.advanceTimersByTime(500) // default stepDuration(400) + stepDelay(100)
+    expect(svg.getAttribute('aria-valuenow')).toBe('1')
+
+    vi.advanceTimersByTime(500)
+    expect(svg.getAttribute('aria-valuenow')).toBe('2')
+
+    ctrl.destroy()
+  })
+
+  it("advance:click (svg-level) exposes slider semantics that increment per click/ArrowRight", () => {
+    const { container, svg, steps } = fixture()
+    const ctrl = createDiagram(
+      container, svg, steps,
+      resolveOptions({ trigger: 'immediate', advance: 'click' }),
+      1,
+    )
+    expect(svg.getAttribute('role')).toBe('slider')
+    expect(svg.getAttribute('aria-valuemin')).toBe('0')
+    expect(svg.getAttribute('aria-valuemax')).toBe('2')
+    expect(svg.getAttribute('aria-valuenow')).toBe('0') // only the intro revealed so far
+    expect(svg.getAttribute('aria-valuetext')).toBe('step 0 of 2')
+
+    svg.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    expect(svg.getAttribute('aria-valuenow')).toBe('1')
+
+    svg.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
+    expect(svg.getAttribute('aria-valuenow')).toBe('2')
+
+    ctrl.destroy()
+  })
 })

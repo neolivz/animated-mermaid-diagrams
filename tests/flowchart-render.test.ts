@@ -457,4 +457,48 @@ describe("advance: 'click'", () => {
 
     ctrl.destroy()
   })
+
+  it('keyboard expansion (Enter) hands focus to the next clickable node, then to the svg once the walk completes', () => {
+    // Focus tracking in jsdom requires the element to be connected to document.body.
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const ctrl = flowchart(container, { ...CONFIG, options: { advance: 'click', trigger: 'immediate' } })
+    const svg = container.querySelector('svg')!
+    const groupFor = (text: string): SVGGElement =>
+      ([...container.querySelectorAll('text')].find((t) => t.textContent === text)!.closest('g') as SVGGElement)
+    const startGroup = groupFor('Navigate')
+    const checkGroup = groupFor('Editable?')
+
+    expect(svg.getAttribute('tabindex')).toBe('-1') // programmatic-only focus target in node click mode
+
+    startGroup.focus()
+    startGroup.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+    expect(checkGroup.style.opacity).toBe('') // expanded
+    expect(document.activeElement).toBe(checkGroup) // focus moved to the next clickable node
+
+    checkGroup.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+    // editor/readonly have no outgoing edges — no clickable node remains.
+    expect(document.activeElement).toBe(svg) // walk complete: focus lands on the svg
+
+    ctrl.destroy()
+    document.body.removeChild(container)
+  })
+
+  it('a mouse click expansion does not steal focus', () => {
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const ctrl = flowchart(container, { ...CONFIG, options: { advance: 'click', trigger: 'immediate' } })
+    const groupFor = (text: string): SVGGElement =>
+      ([...container.querySelectorAll('text')].find((t) => t.textContent === text)!.closest('g') as SVGGElement)
+    const startGroup = groupFor('Navigate')
+    const checkGroup = groupFor('Editable?')
+
+    const before = document.activeElement
+    startGroup.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    expect(checkGroup.style.opacity).toBe('') // expanded
+    expect(document.activeElement).toBe(before) // unchanged — no focus stealing on mouse activation
+
+    ctrl.destroy()
+    document.body.removeChild(container)
+  })
 })
