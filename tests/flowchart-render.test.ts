@@ -440,4 +440,21 @@ describe("advance: 'click'", () => {
     checkGroup.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
     // no assertion needed beyond "doesn't throw" — destroy() removed the listener
   })
+
+  it('ignores arrow keys on flowchart node click targets (non-linear reveal — Enter/Space only)', () => {
+    const container = document.createElement('div')
+    const ctrl = flowchart(container, { ...CONFIG, options: { advance: 'click', trigger: 'immediate' } })
+    const groupFor = (text: string): SVGGElement =>
+      ([...container.querySelectorAll('text')].find((t) => t.textContent === text)!.closest('g') as SVGGElement)
+    const startGroup = groupFor('Navigate')
+    const checkGroup = groupFor('Editable?')
+
+    startGroup.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
+    expect(checkGroup.style.opacity).toBe('0') // ArrowRight is not wired for node targets
+
+    startGroup.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }))
+    expect(startGroup.style.opacity).toBe('') // ArrowLeft is not wired either — root stays revealed
+
+    ctrl.destroy()
+  })
 })

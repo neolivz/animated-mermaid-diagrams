@@ -277,7 +277,7 @@
           <span class="fig">FIG. 03 — STATE MACHINE</span>
           <h2>Under manual control</h2>
         </div>
-        <p class="how">Drive the controller yourself: pause mid-stroke, jump to a step, reset.</p>
+        <p class="how">Drive the controller yourself — or focus the diagram: ←/→ step, Space pauses and resumes, Home resets.</p>
         <div class="controls">
           <button id="play">play</button>
           <button id="pause">pause</button>
@@ -429,7 +429,7 @@ sequenceDiagram
         { from: 'ready', to: 'idle', label: 'reset()' },
       ],
       initial: 'idle',
-      options: { trigger: 'manual' },
+      options: { trigger: 'manual', keyboard: true },
     })
     document.getElementById('play').onclick = () => ctrl.play()
     document.getElementById('pause').onclick = () => ctrl.pause()

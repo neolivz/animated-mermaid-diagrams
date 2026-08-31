@@ -45,6 +45,7 @@ export function resolveOptions(o: DiagramOptions = {}): ResolvedOptions {
     animate: o.animate ?? true,
     trigger: o.trigger ?? 'onScroll',
     advance: o.advance ?? 'auto',
+    keyboard: o.keyboard ?? false,
     stepDuration: o.stepDuration ?? 400,
     stepDelay: o.stepDelay ?? 100,
     replayOnScroll: o.replayOnScroll ?? true,

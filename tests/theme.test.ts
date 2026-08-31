@@ -56,6 +56,7 @@ describe('resolveOptions', () => {
     expect(o.fontFamily).toBe('system-ui, sans-serif')
     expect(o.theme).toBe(lightTheme)
     expect(o.advance).toBe('auto')
+    expect(o.keyboard).toBe(false)
   })
 
   it('respects overrides', () => {

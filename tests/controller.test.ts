@@ -251,4 +251,128 @@ describe('createDiagram', () => {
     vi.advanceTimersByTime(2000)
     expect(els[2].style.opacity).toBe('0') // still unrevealed — resume did nothing
   })
+
+  it('keyboard:true ArrowRight/ArrowLeft/Home/End step through raw anim-steps (manual trigger, before play())', () => {
+    const { container, svg, els, steps } = fixture()
+    const onComplete = vi.fn()
+    const ctrl = createDiagram(
+      container, svg, steps,
+      resolveOptions({ trigger: 'manual', keyboard: true, onComplete }),
+      1,
+    )
+    expect(svg.getAttribute('tabindex')).toBe('0')
+    expect(svg.getAttribute('aria-label') ?? '').toContain('use arrow keys to step')
+    expect(els[0].style.opacity).toBe('0') // manual: nothing shown yet
+
+    const key = (k: string): void => { svg.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true })) }
+
+    key('ArrowRight')
+    expect(els[0].style.opacity).toBe('') // anim step 0 (intro) revealed
+    expect(els[1].style.opacity).toBe('0')
+
+    key('ArrowRight')
+    expect(els[1].style.opacity).toBe('') // anim step 1 (user-facing step 0) revealed
+    expect(els[2].style.opacity).toBe('0')
+
+    key('ArrowLeft')
+    expect(els[1].style.opacity).toBe('0') // stepped back — hidden again
+    expect(els[0].style.opacity).toBe('') // still shown
+
+    key('Home')
+    expect(els[0].style.opacity).toBe('0') // reset: everything hidden
+
+    key('End')
+    expect(els[0].style.opacity).toBe('')
+    expect(els[1].style.opacity).toBe('')
+    expect(els[2].style.opacity).toBe('')
+    // Matches goToStep's existing behavior: it never fires onComplete on its own
+    // (only the play()/runStep timer path does), so End doesn't either.
+    expect(onComplete).not.toHaveBeenCalled()
+
+    ctrl.destroy()
+  })
+
+  it('keyboard:true Space toggles idle→play, playing→pause, paused→resume; onStepStart follows stepIndexOffset', () => {
+    const { container, svg, els, steps } = fixture()
+    const onStepStart = vi.fn()
+    const ctrl = createDiagram(
+      container, svg, steps,
+      resolveOptions({ trigger: 'manual', keyboard: true, onStepStart }),
+      1,
+    )
+    const key = (k: string): void => { svg.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true })) }
+
+    key(' ') // idle -> play()
+    expect(els[0].style.opacity).toBe('') // intro (anim step 0) played immediately
+    expect(onStepStart).not.toHaveBeenCalled() // intro suppressed from the user-facing callback
+
+    key(' ') // playing -> pause()
+    vi.advanceTimersByTime(5000)
+    expect(onStepStart).not.toHaveBeenCalled() // paused: the pending step never ran
+
+    key(' ') // paused -> resume()
+    vi.advanceTimersByTime(1000)
+    expect(onStepStart).toHaveBeenCalledWith(0) // anim step 1 (user-facing 0) ran
+    expect(els[1].style.opacity).toBe('')
+
+    ctrl.destroy()
+  })
+
+  it('keyboard:false diagrams have no tabindex and ignore keys', () => {
+    const { container, svg, els, steps } = fixture()
+    createDiagram(container, svg, steps, resolveOptions({ trigger: 'manual' }))
+    expect(svg.getAttribute('tabindex')).toBeNull()
+    svg.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
+    expect(els[0].style.opacity).toBe('0') // ignored — keyboard transport not wired
+  })
+
+  it('keyboard:true destroy() removes the keydown listener', () => {
+    const { container, svg, els, steps } = fixture()
+    const ctrl = createDiagram(
+      container, svg, steps,
+      resolveOptions({ trigger: 'manual', keyboard: true }),
+    )
+    ctrl.destroy()
+    svg.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
+    expect(els[0].style.opacity).toBe('0') // unchanged — listener was removed
+  })
+
+  it('advance:click ArrowRight advances like a click and ArrowLeft steps back (svg-level)', () => {
+    const { container, svg, els, steps } = fixture()
+    const ctrl = createDiagram(
+      container, svg, steps,
+      resolveOptions({ trigger: 'immediate', advance: 'click' }),
+      1,
+    )
+    const key = (k: string): void => { svg.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true })) }
+    // intro (offset step 0) revealed immediately.
+    expect(els[0].style.opacity).toBe('')
+    expect(els[1].style.opacity).toBe('0')
+
+    key('ArrowRight')
+    expect(els[1].style.opacity).toBe('')
+
+    key('ArrowLeft')
+    expect(els[1].style.opacity).toBe('0') // stepped back
+
+    ctrl.destroy()
+  })
+
+  it('advance:click Home resets and restarts click mode', () => {
+    const { container, svg, els, steps } = fixture()
+    const ctrl = createDiagram(
+      container, svg, steps,
+      resolveOptions({ trigger: 'immediate', advance: 'click' }),
+      1,
+    )
+    const key = (k: string): void => { svg.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true })) }
+    key('ArrowRight')
+    expect(els[1].style.opacity).toBe('')
+
+    key('Home')
+    expect(els[0].style.opacity).toBe('') // intro re-revealed
+    expect(els[1].style.opacity).toBe('0') // back to just the intro
+
+    ctrl.destroy()
+  })
 })

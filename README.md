@@ -285,6 +285,7 @@ interface DiagramOptions {
   animate?: boolean
   trigger?: 'onScroll' | 'immediate' | 'manual'
   advance?: 'auto' | 'click'
+  keyboard?: boolean
   stepDuration?: number
   stepDelay?: number
   replayOnScroll?: boolean
@@ -303,6 +304,7 @@ interface DiagramOptions {
 | `animate` | `boolean` | `true` | Set `false` to render final state immediately |
 | `trigger` | `'onScroll' \| 'immediate' \| 'manual'` | `'onScroll'` | When to start animation |
 | `advance` | `'auto' \| 'click'` | `'auto'` | Advance steps on click instead of a timer; on flowcharts, click a revealed node to expand its branches |
+| `keyboard` | `boolean` | `false` | Focused diagrams respond to arrow keys (step), Space (pause/resume), Home/End |
 | `stepDuration` | `number` | `400` | Milliseconds per step animation |
 | `stepDelay` | `number` | `100` | Milliseconds between steps |
 | `replayOnScroll` | `boolean` | `true` | Replay animation when diagram re-enters viewport |
@@ -506,6 +508,7 @@ sequenceDiagram
 - SVG includes `role="img"` and `aria-label` derived from the diagram content
 - All text is selectable
 - Body text in both built-in themes meets WCAG AA contrast. Some accent graphics (arrows, node borders) and the dark theme's note text sit slightly below the strictest thresholds — pass a custom `ThemeTokens` object where full AA graphics contrast is required
+- `advance: 'click'` diagrams are keyboard-operable out of the box (revealed nodes/the diagram itself are focusable and respond to Enter/Space); set `keyboard: true` on any other diagram to add full arrow-key/Space/Home/End transport control
 
 ## Browser Support
 

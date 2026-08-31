@@ -214,6 +214,19 @@ export class Animator {
     return this.steps.length
   }
 
+  /** Anim-step index the next reveal would play. */
+  get position(): number {
+    return this.nextIndex
+  }
+
+  get paused(): boolean {
+    return this.isPaused
+  }
+
+  get playing(): boolean {
+    return this.timer !== null
+  }
+
   /** Show steps 0..n (inclusive) in their completed state; later steps hidden. */
   goToStep(n: number): void {
     if (this.destroyed) return

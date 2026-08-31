@@ -21,6 +21,10 @@ export interface DiagramOptions {
    *  through each step (sequence/state) or click revealed flowchart nodes to
    *  expand their branches. */
   advance?: 'auto' | 'click'
+  /** When true (and the diagram animates), the SVG becomes focusable and
+   *  responds to arrow keys / Space / Home / End / Enter for keyboard-driven
+   *  playback control. Default false. */
+  keyboard?: boolean
   stepDuration?: number
   stepDelay?: number
   replayOnScroll?: boolean
@@ -37,6 +41,7 @@ export interface ResolvedOptions {
   animate: boolean
   trigger: 'onScroll' | 'immediate' | 'manual'
   advance: 'auto' | 'click'
+  keyboard: boolean
   stepDuration: number
   stepDelay: number
   replayOnScroll: boolean
