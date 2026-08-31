@@ -381,7 +381,7 @@
           <span class="fig">FIG. 07 — AUTO-INIT, CLASS MARKER</span>
           <h2>The Mermaid convention</h2>
         </div>
-        <p class="how">A <code>&lt;pre class="animated-mermaid-diagrams"&gt;</code> block becomes a live diagram when <code>init()</code> runs — a drop-in for pages already using Mermaid's <code>&lt;pre class="mermaid"&gt;</code> pattern.</p>
+        <p class="how">Put your Mermaid text in a <code>&lt;pre class="animated-mermaid-diagrams"&gt;</code> and call <code>init()</code> once — the block becomes a live diagram. Coming from Mermaid's <code>&lt;pre class="mermaid"&gt;</code>? Just change the class.</p>
         <div class="panel">
           <pre class="animated-mermaid-diagrams">
 sequenceDiagram
@@ -407,7 +407,7 @@ sequenceDiagram
           <span class="fig">FIG. 08 — AUTO-INIT, DATA ATTRIBUTE</span>
           <h2>Any element, options in markup</h2>
         </div>
-        <p class="how"><code>data-animated-mermaid</code> marks any element, and <code>data-amd-*</code> attributes carry the options — this one is click-to-explore with no JavaScript configuration at all. Click a node.</p>
+        <p class="how">Add <code>data-animated-mermaid</code> to any element that holds Mermaid text, and set options as attributes — <code>data-amd-theme</code>, <code>data-amd-trigger</code>, or <code>data-animated-mermaid="click"</code> for click-to-explore. Try it below: click a node.</p>
         <div class="panel">
           <div data-animated-mermaid="click" data-amd-trigger="immediate">
 flowchart LR
