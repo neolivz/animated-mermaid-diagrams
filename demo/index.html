@@ -21,6 +21,11 @@
   </section>
 
   <section>
+    <h2>Multi-tier sequence (6 participants)</h2>
+    <div id="seq-tiers"></div>
+  </section>
+
+  <section>
     <h2>Flowchart (mermaid text)</h2>
     <div id="flow"></div>
   </section>
@@ -65,6 +70,30 @@ sequenceDiagram
         User->>App: Click the record link
         Note over App: Router intercepts navigation
         App-->>User: Record editor loads
+    `)
+
+    render(document.getElementById('seq-tiers'), `
+      sequenceDiagram
+        actor Shopper
+        participant Web as Web App
+        participant GW as API Gateway
+        participant Auth as Auth Service
+        participant Orders as Orders Service
+        participant DB as Postgres
+
+        Shopper->>Web: Checkout
+        Web->>GW: POST /orders
+        GW->>Auth: Validate token
+        Auth-->>GW: Claims OK
+        GW->>Orders: Create order
+        Orders->>Orders: Validate cart
+        Orders->>DB: INSERT order
+        DB-->>Orders: Row id 4711
+        Orders--xGW: Timeout
+        Note over GW,Orders: Gateway retries with backoff
+        Orders-->>GW: 201 Created
+        GW-->>Web: 201 Created
+        Web-->>Shopper: Order confirmed
     `)
 
     render(document.getElementById('flow'), `
