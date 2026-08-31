@@ -67,6 +67,12 @@ describe('layeredLayout', () => {
     expect(r.layers).toEqual([['start'], ['idle'], ['loading'], ['error', 'ready']])
   })
 
+  it('keeps the first occurrence when duplicate ids are passed', () => {
+    const r = layeredLayout([box('a'), { id: 'a', w: 50, h: 20 }, box('b')], [{ from: 'a', to: 'b' }], 'TB')
+    expect(r.items.size).toBe(2)
+    expect(r.items.get('a')!.w).toBe(100)
+  })
+
   it('reports total width and height covering all nodes', () => {
     const r = layeredLayout([box('a'), box('b'), box('c')], [
       { from: 'a', to: 'b' },

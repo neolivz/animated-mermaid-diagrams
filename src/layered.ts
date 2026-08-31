@@ -33,10 +33,14 @@ const GAP_MAIN = 64
 const GAP_CROSS = 48
 
 export function layeredLayout(
-  items: LayeredItem[],
+  rawItems: LayeredItem[],
   edges: LayeredEdgeIn[],
   direction: FlowDirection,
 ): LayeredResult {
+  // Defensive: duplicate ids would corrupt the ranking maps; first one wins.
+  const seenIds = new Set<string>()
+  const items = rawItems.filter((i) => (seenIds.has(i.id) ? false : (seenIds.add(i.id), true)))
+
   // 1) Longest-path ranking via Kahn's algorithm. When a cycle starves the queue,
   //    force the lowest-declared already-reached node into its current rank
   //    (breaking one back edge) and continue, so downstream nodes still group

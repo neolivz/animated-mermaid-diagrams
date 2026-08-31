@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { buildStateSvg, stateDiagram } from '../src/state/render'
 import { resolveOptions, lightTheme } from '../src/theme'
+import { estimateTextWidth } from '../src/svg'
 import type { StateConfig } from '../src/types'
 
 const CONFIG: StateConfig = {
@@ -91,6 +92,45 @@ describe('buildStateSvg', () => {
 
   it('sets an aria-label', () => {
     expect(svg.getAttribute('aria-label')).toContain('State diagram')
+  })
+
+  it('bows bidirectional transition pairs apart', () => {
+    const pills = [...svg.querySelectorAll('rect')].filter((r) => r.getAttribute('rx') === '4')
+    const coords = pills.map((r) => `${r.getAttribute('x')},${r.getAttribute('y')}`)
+    expect(new Set(coords).size).toBe(coords.length)
+  })
+
+  it('grows the canvas for long transition labels', () => {
+    const long = 'transition when the user clicks retry'
+    const cfg: StateConfig = {
+      states: [{ id: 'a', text: 'A' }, { id: 'b', text: 'B' }],
+      transitions: [{ from: 'a', to: 'b', label: long }],
+      initial: 'a',
+    }
+    const { svg: s } = buildStateSvg(cfg, opts)
+    const [, , vw] = (s.getAttribute('viewBox') ?? '').split(' ').map(Number)
+    expect(vw).toBeGreaterThanOrEqual(estimateTextWidth(long, 12) + 12 + 80)
+  })
+
+  it('keeps top-row self-loops in bounds under small padding', () => {
+    const cfg: StateConfig = {
+      states: [{ id: 'a', text: 'A' }],
+      transitions: [{ from: 'a', to: 'a', label: 'tick' }],
+    }
+    const { svg: s } = buildStateSvg(cfg, resolveOptions({ theme: 'light', padding: 10 }))
+    const m = (s.querySelector('g')?.getAttribute('transform') ?? '').match(/translate\([\d.-]+,\s*([\d.-]+)\)/)
+    expect(m).not.toBeNull()
+    expect(Number(m![1])).toBeGreaterThanOrEqual(44) // 10 pad + 34 loop + 10 label overhang → shifted down
+  })
+
+  it('filters out empty animation steps for unresolvable transitions', () => {
+    const cfg: StateConfig = {
+      states: [{ id: 'a', text: 'A' }],
+      transitions: [{ from: 'a', to: 'ghost' }],
+      initial: 'a',
+    }
+    const { steps: st } = buildStateSvg(cfg, opts)
+    for (const step of st) expect(step.length).toBeGreaterThan(0)
   })
 })
 

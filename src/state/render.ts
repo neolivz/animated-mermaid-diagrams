@@ -92,13 +92,17 @@ export function buildStateSvg(
     layoutEdges,
     'TB',
   )
-  const pad = opts.padding
-  const w = layout.width + pad * 2
-  const h = layout.height + pad * 2
-  const label = `State diagram with ${config.states.length} states and ${config.transitions.length} transitions`
-  const svg = svgRoot(w, h, opts, label)
-  const root = el('g', { transform: `translate(${pad},${pad})` })
-  svg.appendChild(root)
+  const root = el('g')
+
+  // Content hanging outside the state layout (label pills, self-loops) grows
+  // the canvas instead of clipping (same pattern as the flowchart renderer).
+  let extraLeft = 0
+  let extraRight = 0
+  let extraTop = 0
+  const trackX = (x1: number, x2: number): void => {
+    extraLeft = Math.max(extraLeft, -x1)
+    extraRight = Math.max(extraRight, x2 - layout.width)
+  }
 
   const stateById = new Map(layoutStates.map((s) => [s.id, s]))
 
@@ -120,10 +124,14 @@ export function buildStateSvg(
       const head = arrowHead(cx - 12, s.y, 70, t.line)
       root.appendChild(head)
       anim.push({ el: head, kind: 'fade' })
+      extraTop = Math.max(extraTop, -(s.y - 34))
+      trackX(cx - 44, cx + 44)
       if (tr.label) {
         const txt = textEl(cx, s.y - 34, tr.label, { color: t.textSecondary, size: 12 })
         root.appendChild(txt)
         anim.push({ el: txt, kind: 'fade' })
+        extraTop = Math.max(extraTop, -(s.y - 44))
+        trackX(cx - estimateTextWidth(tr.label, 12) / 2, cx + estimateTextWidth(tr.label, 12) / 2)
       }
       return anim
     }
@@ -133,8 +141,15 @@ export function buildStateSvg(
     const x2 = e.x + e.w / 2
     const y2 = down ? e.y : e.y + e.h
     const mid = (y2 - y1) / 2
+    // Bow bidirectional pairs to opposite sides so their curves and labels
+    // don't render on top of each other (e.g. failure / retry()).
+    const hasReverse = config.transitions.some(
+      (o) => o !== tr && o.from === tr.to && o.to === tr.from,
+    )
+    const bow = hasReverse ? (tr.from < tr.to ? 28 : -28) : 0
+    const labelDy = hasReverse ? (tr.from < tr.to ? -8 : 8) : 0
     const path = el('path', {
-      d: `M ${x1} ${y1} C ${x1} ${y1 + mid}, ${x2} ${y2 - mid}, ${x2} ${y2}`,
+      d: `M ${x1} ${y1} C ${x1 + bow} ${y1 + mid}, ${x2 + bow} ${y2 - mid}, ${x2} ${y2}`,
       fill: 'none', stroke: t.line, 'stroke-width': 2,
     })
     root.appendChild(path)
@@ -143,9 +158,10 @@ export function buildStateSvg(
     root.appendChild(head)
     anim.push({ el: head, kind: 'fade' })
     if (tr.label) {
-      const mx = (x1 + x2) / 2
-      const my = (y1 + y2) / 2
+      const mx = (x1 + x2) / 2 + bow
+      const my = (y1 + y2) / 2 + labelDy
       const lw = estimateTextWidth(tr.label, 12) + 12
+      trackX(mx - lw / 2, mx + lw / 2)
       const g = el('g', {}, [
         el('rect', { x: mx - lw / 2, y: my - 10, width: lw, height: 20, rx: 4, fill: t.background }),
         textEl(mx, my, tr.label, { color: t.textSecondary, size: 12 }),
@@ -224,7 +240,17 @@ export function buildStateSvg(
   }
   if (orphans.length > 0) steps.push(orphans)
 
-  return { svg, steps }
+  const finalSteps = steps.filter((st) => st.length > 0)
+
+  const pad = opts.padding
+  const w = layout.width + extraLeft + extraRight + pad * 2
+  const h = layout.height + extraTop + pad * 2
+  const label = `State diagram with ${config.states.length} states and ${config.transitions.length} transitions`
+  const svg = svgRoot(w, h, opts, label)
+  root.setAttribute('transform', `translate(${pad + extraLeft},${pad + extraTop})`)
+  svg.appendChild(root)
+
+  return { svg, steps: finalSteps }
 }
 
 export function stateDiagram(container: HTMLElement, config: StateConfig): DiagramController {
