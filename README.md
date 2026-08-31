@@ -374,8 +374,10 @@ interface DiagramController {
 | `reset()` | Reset to initial state (nothing visible) |
 | `pause()` | Pause mid-animation |
 | `resume()` | Resume from pause |
-| `goToStep(n)` | Jump to step n showing all prior steps completed (sequence and state only) |
+| `goToStep(n)` | Jump to step n showing all prior steps completed |
 | `destroy()` | Remove SVG, disconnect observers, clean up |
+
+Step indices for `goToStep(n)` / `onStepStart(n)`: for sequence diagrams, `n` maps 1:1 to `steps[n]` in the config. For flowcharts, steps follow the layered reveal order (layer nodes, connecting edges, next layer, …). For state diagrams, steps follow the BFS reveal order from the initial state, which may differ from the order of the `transitions` array.
 
 ## Mermaid Syntax Compatibility
 
@@ -437,12 +439,15 @@ Other unsupported Mermaid features are silently ignored (the diagram renders wit
 import { useEffect, useRef } from 'react'
 import { render } from 'animated-mermaid-diagrams'
 
-function Diagram({ mermaid, options }) {
-  const ref = useRef(null)
+import type { DiagramOptions } from 'animated-mermaid-diagrams'
+
+function Diagram({ mermaid, options }: { mermaid: string; options?: DiagramOptions }) {
+  const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
+    if (!ref.current) return
     const ctrl = render(ref.current, mermaid, options)
     return () => ctrl.destroy()
-  }, [mermaid])
+  }, [mermaid, options])
   return <div ref={ref} />
 }
 ```
@@ -465,10 +470,10 @@ sequenceDiagram
 
 ## Build and Package
 
-- TypeScript source, ships ESM + CJS + UMD
+- TypeScript source, ships ESM + CJS + a browser global build
 - Zero runtime dependencies
 - Tree-shakeable: `import { sequence }` only pulls in the sequence renderer
-- UMD global: `window.AnimatedMermaidDiagrams`
+- Browser global: `window.AnimatedMermaidDiagrams` via `dist/animated-mermaid-diagrams.umd.js` (an IIFE build for `<script>` tags; it does not register with AMD/CommonJS loaders)
 - Bundle size: ~9.4KB gzipped (all diagram types) — budget < 20KB
 - Mermaid parser is a lightweight subset parser — does NOT depend on the mermaid package
 
@@ -477,7 +482,7 @@ sequenceDiagram
 - Respects `prefers-reduced-motion: reduce` — skips animations, renders final state immediately
 - SVG includes `role="img"` and `aria-label` derived from the diagram content
 - All text is selectable
-- Adequate color contrast in both built-in themes (WCAG AA)
+- Body text in both built-in themes meets WCAG AA contrast. Some accent graphics (arrows, node borders) and the dark theme's note text sit slightly below the strictest thresholds — pass a custom `ThemeTokens` object where full AA graphics contrast is required
 
 ## Browser Support
 

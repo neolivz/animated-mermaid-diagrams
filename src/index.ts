@@ -77,6 +77,7 @@ export { parseSequence } from './sequence/parse'
 export { parseFlowchart } from './flowchart/parse'
 export { parseState } from './state/parse'
 export { detectType } from './detect'
+export type { DetectedType } from './detect'
 export { lightTheme, darkTheme } from './theme'
 export type {
   DiagramOptions,

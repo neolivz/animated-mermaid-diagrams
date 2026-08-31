@@ -7,12 +7,19 @@
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "author": "Jishnu Viswanath",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
-    }
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./package.json": "./package.json"
   },
   "unpkg": "./dist/animated-mermaid-diagrams.umd.js",
   "files": [
@@ -21,7 +28,7 @@
   "sideEffects": false,
   "scripts": {
     "build": "tsup",
-    "prepublishOnly": "npm run build",
+    "prepublishOnly": "npm test && npm run typecheck && npm run build",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
