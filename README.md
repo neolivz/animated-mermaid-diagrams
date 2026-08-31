@@ -8,8 +8,6 @@ Drop-in animated rendering for Mermaid diagrams. Accepts Mermaid syntax or a JS 
 npm install animated-mermaid-diagrams
 ```
 
-> **Not yet published to npm.** Until the first release, build from source: clone the repo, then `npm install && npm run build`.
-
 ## Vision
 
 Animate every Mermaid diagram type. V1 (currently `0.1.0`, unreleased) ships sequence, flowchart, and state diagrams — the three types where step-by-step animation adds the most value. Subsequent releases add the remaining types.
