@@ -79,4 +79,21 @@ describe('parseFlowchart', () => {
   it('throws on non-flowchart input', () => {
     expect(() => parseFlowchart('sequenceDiagram\nA->>B: x')).toThrow()
   })
+
+  it('protects quoted labels containing arrows from the edge splitter', () => {
+    const c = parseFlowchart('flowchart TD\n  a["go --> there"] --> b')
+    expect(c.nodes[0]).toEqual({ id: 'a', text: 'go --> there', shape: 'rect' })
+    expect(c.edges).toEqual([{ from: 'a', to: 'b', type: 'solid' }])
+  })
+
+  it('degrades safely on unsupported fan-out syntax (a --> b & c)', () => {
+    const c = parseFlowchart('flowchart TD\n  a --> b & c')
+    expect(c.nodes.map((n) => n.id)).toEqual(['a'])
+    expect(c.edges).toEqual([])
+  })
+
+  it('does not corrupt node text that resembles a mask placeholder', () => {
+    const c = parseFlowchart('flowchart TD\n  a[item 0 ok] --> b')
+    expect(c.nodes[0].text).toBe('item 0 ok')
+  })
 })
