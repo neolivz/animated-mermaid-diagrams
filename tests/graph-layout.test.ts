@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { graphLayout } from '../src/graph-layout'
+import { graphLayout, type GraphGroupIn } from '../src/graph-layout'
 
 const box = (id: string) => ({ id, w: 100, h: 40 })
 
@@ -122,5 +122,103 @@ describe('graphLayout', () => {
       expect(p.x).toBeGreaterThanOrEqual(0)
       expect(p.y).toBeGreaterThanOrEqual(0)
     }
+  })
+
+  it('returns no clusters and unchanged layout when no groups are supplied', () => {
+    const r = graphLayout([box('a'), box('b')], [{ from: 'a', to: 'b' }], 'TB')
+    expect(r.clusters).toEqual([])
+    const a = r.nodes.get('a')!
+    const b = r.nodes.get('b')!
+    expect(a.y).toBeLessThan(b.y)
+  })
+
+  const contains = (outer: { x: number; y: number; w: number; h: number }, inner: { x: number; y: number; w: number; h: number }) => {
+    expect(outer.x).toBeLessThanOrEqual(inner.x)
+    expect(outer.y).toBeLessThanOrEqual(inner.y)
+    expect(outer.x + outer.w).toBeGreaterThanOrEqual(inner.x + inner.w)
+    expect(outer.y + outer.h).toBeGreaterThanOrEqual(inner.y + inner.h)
+  }
+
+  it('groups two nodes into one cluster containing both node rects', () => {
+    const groups: GraphGroupIn[] = [{ id: 'g1' }]
+    const nodeGroup = new Map([
+      ['a', 'g1'],
+      ['b', 'g1'],
+    ])
+    const r = graphLayout([box('a'), box('b')], [{ from: 'a', to: 'b' }], 'TB', groups, nodeGroup)
+    expect(r.clusters).toHaveLength(1)
+    const cluster = r.clusters[0]
+    expect(cluster.id).toBe('g1')
+    contains(cluster, r.nodes.get('a')!)
+    contains(cluster, r.nodes.get('b')!)
+  })
+
+  it('nests a child cluster geometrically inside its parent cluster', () => {
+    const groups: GraphGroupIn[] = [{ id: 'g1' }, { id: 'g2', parent: 'g1' }]
+    const nodeGroup = new Map([
+      ['a', 'g1'],
+      ['b', 'g1'],
+      ['c', 'g2'],
+    ])
+    const r = graphLayout(
+      [box('a'), box('b'), box('c')],
+      [
+        { from: 'a', to: 'b' },
+        { from: 'b', to: 'c' },
+      ],
+      'TB',
+      groups,
+      nodeGroup,
+    )
+    const g1 = r.clusters.find((c) => c.id === 'g1')!
+    const g2 = r.clusters.find((c) => c.id === 'g2')!
+    expect(g1).toBeDefined()
+    expect(g2).toBeDefined()
+    contains(g1, g2)
+    contains(g2, r.nodes.get('c')!)
+  })
+
+  it('sets cluster layer to the layer of its topmost member (recursive through nesting)', () => {
+    const groups: GraphGroupIn[] = [{ id: 'g1' }, { id: 'g2', parent: 'g1' }]
+    const nodeGroup = new Map([
+      ['a', 'g1'],
+      ['b', 'g1'],
+      ['c', 'g2'],
+    ])
+    const r = graphLayout(
+      [box('a'), box('b'), box('c')],
+      [
+        { from: 'a', to: 'b' },
+        { from: 'b', to: 'c' },
+      ],
+      'TB',
+      groups,
+      nodeGroup,
+    )
+    const g1 = r.clusters.find((c) => c.id === 'g1')!
+    const g2 = r.clusters.find((c) => c.id === 'g2')!
+    const a = r.nodes.get('a')!
+    const b = r.nodes.get('b')!
+    const c = r.nodes.get('c')!
+    expect(g1.layer).toBe(Math.min(a.layer, b.layer, c.layer))
+    expect(g2.layer).toBe(c.layer)
+  })
+
+  it('drops an edge whose endpoint is a group id, without throwing', () => {
+    const groups: GraphGroupIn[] = [{ id: 'g1' }]
+    const nodeGroup = new Map([['b', 'g1']])
+    expect(() =>
+      graphLayout([box('a'), box('b')], [{ from: 'a', to: 'g1' }], 'TB', groups, nodeGroup),
+    ).not.toThrow()
+    const r = graphLayout([box('a'), box('b')], [{ from: 'a', to: 'g1' }], 'TB', groups, nodeGroup)
+    expect(r.edges).toHaveLength(0)
+  })
+
+  it('ignores a group whose id collides with a node id, leaving its members parentless', () => {
+    const groups: GraphGroupIn[] = [{ id: 'b' }] // collides with node 'b'
+    const nodeGroup = new Map([['a', 'b']])
+    const r = graphLayout([box('a'), box('b')], [{ from: 'a', to: 'b' }], 'TB', groups, nodeGroup)
+    expect(r.clusters).toEqual([])
+    expect(r.nodes.size).toBe(2)
   })
 })

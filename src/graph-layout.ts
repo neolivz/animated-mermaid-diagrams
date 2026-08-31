@@ -14,6 +14,11 @@ export interface GraphEdgeIn {
   labelH?: number
 }
 
+export interface GraphGroupIn {
+  id: string
+  parent?: string
+}
+
 export interface PlacedNode {
   id: string
   /** top-left corner */
@@ -35,6 +40,16 @@ export interface PlacedEdge {
   targetLayer: number
 }
 
+export interface PlacedCluster {
+  id: string
+  /** top-left corner */
+  x: number
+  y: number
+  w: number
+  h: number
+  layer: number
+}
+
 export interface GraphLayoutResult {
   nodes: Map<string, PlacedNode>
   edges: PlacedEdge[]
@@ -42,6 +57,8 @@ export interface GraphLayoutResult {
   height: number
   /** node ids per layer, in flow order (for animation grouping) */
   layers: string[][]
+  /** compound cluster boxes; empty when no groups were supplied */
+  clusters: PlacedCluster[]
 }
 
 const NODE_SEP = 48
@@ -53,27 +70,56 @@ export function graphLayout(
   rawNodes: GraphNodeIn[],
   rawEdges: GraphEdgeIn[],
   direction: FlowDirection,
+  groups?: GraphGroupIn[],
+  nodeGroup?: Map<string, string>,
 ): GraphLayoutResult {
   // Defensive: duplicate ids would corrupt dagre's node map; first one wins.
   const seenIds = new Set<string>()
   const nodes = rawNodes.filter((n) => (seenIds.has(n.id) ? false : (seenIds.add(n.id), true)))
   const nodeIds = new Set(nodes.map((n) => n.id))
 
+  // Defensive: a group id colliding with a node id is dropped, and any
+  // nodeGroup memberships pointing at it are ignored (those nodes stay
+  // parentless) — see spec Task 4.
+  const validGroups = (groups ?? []).filter((gr) => !nodeIds.has(gr.id))
+  const validGroupIds = new Set(validGroups.map((gr) => gr.id))
+  // compound:true measurably perturbs dagre's rank spacing even for nodes
+  // with no group at all (verified empirically), so it's only turned on
+  // when there are groups to place — this keeps ungrouped layouts
+  // byte-stable with pre-Task-4 output.
+  const compound = validGroupIds.size > 0
+
   // Skip edges with unresolved endpoints. Self-edges are excluded from the
   // dagre graph entirely — renderers draw those with their own custom loop
-  // path and only need the node's own layer for animation grouping.
+  // path and only need the node's own layer for animation grouping. Edges
+  // whose endpoint is a group id are dropped here too: group ids are never
+  // in nodeIds, so this filter naturally excludes them (dagre throws if you
+  // try to route an edge to a cluster — verified empirically).
   const edges = rawEdges.filter((e) => nodeIds.has(e.from) && nodeIds.has(e.to))
   const graphEdges = edges.filter((e) => e.from !== e.to)
 
   if (nodes.length === 0) {
-    return { nodes: new Map(), edges: [], width: 0, height: 0, layers: [] }
+    return { nodes: new Map(), edges: [], width: 0, height: 0, layers: [], clusters: [] }
   }
 
-  const g = new dagre.graphlib.Graph({ multigraph: true })
+  const g = new dagre.graphlib.Graph({ multigraph: true, compound })
   g.setGraph({ rankdir: direction, nodesep: NODE_SEP, ranksep: RANK_SEP, marginx: 0, marginy: 0 })
   g.setDefaultEdgeLabel(() => ({}))
 
   for (const n of nodes) g.setNode(n.id, { width: n.w, height: n.h })
+
+  if (compound) {
+    for (const gr of validGroups) g.setNode(gr.id, {})
+    if (nodeGroup) {
+      for (const [nodeId, groupId] of nodeGroup) {
+        if (nodeIds.has(nodeId) && validGroupIds.has(groupId)) g.setParent(nodeId, groupId)
+      }
+    }
+    for (const gr of validGroups) {
+      if (gr.parent && validGroupIds.has(gr.parent)) g.setParent(gr.id, gr.parent)
+    }
+  }
+
   // Unique multigraph name per edge (`e${i}`) so parallel and reverse pairs
   // each get their own dagre routing — empirically verified (scratch check)
   // that dagre already routes a→b and b→a as non-overlapping point sets, so
@@ -138,6 +184,63 @@ export function graphLayout(
     }
   })
 
+  // Cluster layer = min layer of member nodes, computed recursively through
+  // nested groups (a parent group's layer = min over all descendant member
+  // nodes).
+  const childGroups = new Map<string, string[]>()
+  for (const gr of validGroups) {
+    if (gr.parent && validGroupIds.has(gr.parent)) {
+      const siblings = childGroups.get(gr.parent) ?? []
+      siblings.push(gr.id)
+      childGroups.set(gr.parent, siblings)
+    }
+  }
+  const directMembers = new Map<string, string[]>()
+  if (nodeGroup) {
+    for (const [nodeId, groupId] of nodeGroup) {
+      if (nodeIds.has(nodeId) && validGroupIds.has(groupId)) {
+        const members = directMembers.get(groupId) ?? []
+        members.push(nodeId)
+        directMembers.set(groupId, members)
+      }
+    }
+  }
+  const clusterLayerCache = new Map<string, number>()
+  const clusterLayerOf = (groupId: string, seen: Set<string> = new Set()): number => {
+    const cached = clusterLayerCache.get(groupId)
+    if (cached !== undefined) return cached
+    if (seen.has(groupId)) return 0 // defensive: guard against a parent cycle
+    seen.add(groupId)
+    let min = Infinity
+    for (const nodeId of directMembers.get(groupId) ?? []) {
+      const l = layerOf.get(nodeId)
+      if (l !== undefined && l < min) min = l
+    }
+    for (const childId of childGroups.get(groupId) ?? []) {
+      const l = clusterLayerOf(childId, seen)
+      if (l < min) min = l
+    }
+    const result = min === Infinity ? 0 : min
+    clusterLayerCache.set(groupId, result)
+    return result
+  }
+
+  const placedClusters: PlacedCluster[] = compound
+    ? validGroups.map((gr) => {
+        const gn = g.node(gr.id)!
+        const w = gn.width ?? 0
+        const h = gn.height ?? 0
+        return {
+          id: gr.id,
+          x: (gn.x ?? 0) - w / 2,
+          y: (gn.y ?? 0) - h / 2,
+          w,
+          h,
+          layer: clusterLayerOf(gr.id),
+        }
+      })
+    : []
+
   const gl = g.graph()
 
   return {
@@ -146,5 +249,6 @@ export function graphLayout(
     width: gl.width ?? 0,
     height: gl.height ?? 0,
     layers,
+    clusters: placedClusters,
   }
 }
