@@ -27,6 +27,19 @@ describe('themes', () => {
     expect(resolveTheme('auto')).toBe(lightTheme)
     expect(resolveTheme(undefined)).toBe(lightTheme)
   })
+
+  it("resolveTheme('auto') returns dark when prefers-color-scheme is dark", () => {
+    const original = (globalThis as { matchMedia?: unknown }).matchMedia
+    ;(globalThis as { matchMedia?: unknown }).matchMedia = (q: string) => ({
+      matches: q.includes('dark'),
+    })
+    try {
+      expect(resolveTheme('auto')).toBe(darkTheme)
+    } finally {
+      if (original === undefined) delete (globalThis as { matchMedia?: unknown }).matchMedia
+      else (globalThis as { matchMedia?: unknown }).matchMedia = original
+    }
+  })
 })
 
 describe('resolveOptions', () => {
