@@ -532,12 +532,41 @@ sequenceDiagram
 <script>AnimatedMermaidDiagrams.init()</script>
 ```
 
-`init()` scans for two markers and renders each match in place, similar to Mermaid's `mermaid.initialize({ startOnLoad: true })`:
+`init(root?, defaults?)` scans for two markers and renders each match in place, similar to Mermaid's `mermaid.initialize({ startOnLoad: true })`:
 
 - `<pre class="animated-mermaid-diagrams">` — the Mermaid-compatible convention (same class Mermaid itself looks for), for `<pre>` elements
-- `[data-animated-mermaid]` — a plain attribute marker (its value is ignored — presence is enough), the recommended form when the element isn't a `<pre>` (a `<div>`, `<code>`, etc.)
+- `[data-animated-mermaid]` — a plain attribute marker (its value is ignored except for the shorthand below — presence is enough), the recommended form when the element isn't a `<pre>` (a `<div>`, `<code>`, etc.)
 
 An element carrying both markers is still rendered exactly once. A diagram that fails to parse is restored to its original element (with a `console.error`) and does not affect the others.
+
+`root` defaults to `document`; pass an element/fragment to scope the scan. `defaults` is a `DiagramOptions` object applied to every matched element, shallow-merged under that element's own `data-amd-*` attributes (per-element attributes win): `init(document, { trigger: 'manual' })`.
+
+#### Per-element options (`data-amd-*`)
+
+Any marked element (either form) can carry these attributes to set its own options, read via `getAttribute` (kebab-case, matching the HTML convention) rather than `dataset`:
+
+- `data-amd-theme` — `light` | `dark` | `auto`
+- `data-amd-animate` — boolean
+- `data-amd-trigger` — `onScroll` | `immediate` | `manual`
+- `data-amd-advance` — `auto` | `click`
+- `data-amd-keyboard`, `data-amd-replay-on-scroll` — boolean
+- `data-amd-step-duration`, `data-amd-step-delay`, `data-amd-padding` — number
+- `data-amd-width`, `data-amd-height` — `100%`/`auto` respectively, or a number
+- `data-amd-font-family` — string
+
+Boolean attributes accept presence, `""`, or `"true"` for `true`, and `"false"` for `false`. Numbers are parsed with `Number(...)`. An attribute that's absent, empty, or doesn't match one of the accepted values is silently ignored and falls back to the default — same lenient contract as the rest of the library.
+
+Shorthand: `data-animated-mermaid="click"` (or `="auto"`) is equivalent to `data-amd-advance="click"`/`"auto"` — a marker value doubling as its own option. An explicit `data-amd-advance` attribute wins if both are present.
+
+```html
+<div data-animated-mermaid="click" data-amd-theme="dark" data-amd-keyboard="true">
+sequenceDiagram
+  actor User
+  participant App
+  User->>App: Hello
+  App-->>User: Hi
+</div>
+```
 
 ## Build and Package
 

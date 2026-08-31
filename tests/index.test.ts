@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { detectType } from '../src/detect'
-import { render, init, sequence, flowchart, stateDiagram, lightTheme } from '../src/index'
+import { render, init, sequence, flowchart, stateDiagram, lightTheme, darkTheme } from '../src/index'
 // The public type surface is imported through the package entry (not ../src/types)
 // on purpose: `npm run typecheck` covers this file, so anything dropped from
 // index.ts's `export type` block fails the build here rather than silently
@@ -190,6 +190,114 @@ A->>B: Hi</div>`
     controllers.forEach((c) => c.destroy())
     document.body.innerHTML = ''
     spy.mockRestore()
+  })
+})
+
+describe('init() declarative per-element options (data-amd-*)', () => {
+  it('data-amd-animate="false" renders final state immediately', () => {
+    document.body.innerHTML = `
+      <div data-animated-mermaid data-amd-animate="false">sequenceDiagram
+A->>B: hello</div>`
+    const controllers = init()
+    const texts = [...document.querySelectorAll('text')].map((t) => t.textContent)
+    expect(texts).toContain('hello')
+    controllers.forEach((c) => c.destroy())
+    document.body.innerHTML = ''
+  })
+
+  it('data-amd-trigger="manual" stays hidden until the returned controller plays it', () => {
+    document.body.innerHTML = `
+      <div data-animated-mermaid data-amd-trigger="manual">sequenceDiagram
+A->>B: hello</div>`
+    const controllers = init()
+    expect(controllers).toHaveLength(1)
+    const svg = document.querySelector('svg')!
+    const rootGroup = svg.querySelector('g')!
+    const firstTarget = rootGroup.querySelector('g') as SVGGElement
+    expect(firstTarget.style.opacity).toBe('0')
+    controllers[0].play()
+    expect(firstTarget.style.opacity).toBe('')
+    controllers.forEach((c) => c.destroy())
+    document.body.innerHTML = ''
+  })
+
+  it('marker shorthand data-animated-mermaid="click" advances one step per click; explicit data-amd-advance="auto" overrides the shorthand', () => {
+    document.body.innerHTML = `
+      <div data-animated-mermaid="click">sequenceDiagram
+A->>B: one
+A->>B: two</div>
+      <div data-animated-mermaid="click" data-amd-advance="auto">sequenceDiagram
+A->>B: one
+A->>B: two</div>`
+    const controllers = init()
+    expect(controllers).toHaveLength(2)
+    const [clickSvg, autoSvg] = [...document.querySelectorAll('svg')]
+
+    // shorthand alone → click mode: svg is a slider, advances one step per click
+    expect(clickSvg.getAttribute('role')).toBe('slider')
+    expect(clickSvg.getAttribute('aria-valuenow')).toBe('0')
+    clickSvg.dispatchEvent(new Event('click'))
+    expect(clickSvg.getAttribute('aria-valuenow')).toBe('1')
+
+    // explicit data-amd-advance="auto" wins over the shorthand → not click mode
+    expect(autoSvg.getAttribute('role')).not.toBe('slider')
+
+    controllers.forEach((c) => c.destroy())
+    document.body.innerHTML = ''
+  })
+
+  it('numeric option data-amd-step-duration="5" is accepted without crashing', () => {
+    document.body.innerHTML = `
+      <div data-animated-mermaid data-amd-step-duration="5">sequenceDiagram
+A->>B: hello</div>`
+    const controllers = init()
+    expect(controllers).toHaveLength(1)
+    expect(document.querySelector('svg')).not.toBeNull()
+    controllers.forEach((c) => c.destroy())
+    document.body.innerHTML = ''
+  })
+
+  it('invalid attribute values are silently ignored, falling back to defaults', () => {
+    document.body.innerHTML = `
+      <div data-animated-mermaid data-amd-trigger="bogus" data-amd-step-delay="abc">sequenceDiagram
+A->>B: hello</div>`
+    expect(() => init()).not.toThrow()
+    expect(document.querySelector('svg')).not.toBeNull()
+    document.querySelectorAll('svg').forEach((s) => s.remove())
+    document.body.innerHTML = ''
+  })
+
+  it('class-form pre with data-amd-theme="dark" uses the dark theme background token', () => {
+    document.body.innerHTML = `
+      <pre class="animated-mermaid-diagrams" data-amd-theme="dark">sequenceDiagram
+A->>B: hello</pre>`
+    const controllers = init()
+    const rect = document.querySelector('svg rect')
+    expect(rect?.getAttribute('fill')).toBe(darkTheme.background)
+    controllers.forEach((c) => c.destroy())
+    document.body.innerHTML = ''
+  })
+
+  it('init(document, defaults) applies defaults, overridden per-element by data-amd-trigger', () => {
+    document.body.innerHTML = `
+      <div data-animated-mermaid>sequenceDiagram
+A->>B: hello</div>
+      <div data-animated-mermaid data-amd-trigger="immediate">sequenceDiagram
+A->>B: hello</div>`
+    const controllers = init(document, { trigger: 'manual' })
+    expect(controllers).toHaveLength(2)
+    const [manualSvg, immediateSvg] = [...document.querySelectorAll('svg')]
+
+    // default applies: stays hidden
+    const manualFirstTarget = manualSvg.querySelector('g')!.querySelector('g') as SVGGElement
+    expect(manualFirstTarget.style.opacity).toBe('0')
+
+    // per-element attribute overrides the default: plays immediately
+    const immediateFirstTarget = immediateSvg.querySelector('g')!.querySelector('g') as SVGGElement
+    expect(immediateFirstTarget.style.opacity).toBe('')
+
+    controllers.forEach((c) => c.destroy())
+    document.body.innerHTML = ''
   })
 })
 

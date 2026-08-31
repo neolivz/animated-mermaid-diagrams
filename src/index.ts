@@ -54,14 +54,105 @@ export function render(
 
 const INIT_SELECTOR = 'pre.animated-mermaid-diagrams, [data-animated-mermaid]'
 
-export function init(root: ParentNode = document): DiagramController[] {
+// ---- init(): declarative per-element options from data-amd-* attributes ----
+
+const AMD_THEMES = ['light', 'dark', 'auto'] as const
+const AMD_TRIGGERS = ['onScroll', 'immediate', 'manual'] as const
+const AMD_ADVANCES = ['auto', 'click'] as const
+
+function readEnum<T extends string>(value: string | null, allowed: readonly T[]): T | undefined {
+  return value !== null && (allowed as readonly string[]).includes(value) ? (value as T) : undefined
+}
+
+function readBool(value: string | null): boolean | undefined {
+  if (value === null) return undefined
+  if (value === '' || value === 'true') return true
+  if (value === 'false') return false
+  return undefined // anything else: ignored
+}
+
+function readNumber(value: string | null): number | undefined {
+  if (value === null || value.trim() === '') return undefined
+  const n = Number(value)
+  return Number.isNaN(n) ? undefined : n
+}
+
+/** `data-amd-width` / `data-amd-height`: the literal pass-through value
+ *  ('100%' / 'auto') when it matches, otherwise a parsed number (ignored if
+ *  not numeric). */
+function readSizeOrLiteral<L extends string>(
+  value: string | null,
+  literal: L,
+): L | number | undefined {
+  if (value === null) return undefined
+  if (value === literal) return literal
+  return readNumber(value)
+}
+
+/** Reads `data-amd-*` attributes off a marked element into a `DiagramOptions`
+ *  partial. Uses `getAttribute` (not `dataset`) so this also works for
+ *  SVG-in-HTML markup and keeps the kebab-case names explicit. Unset or
+ *  invalid attributes are simply omitted from the result — an invalid value
+ *  is silently ignored, consistent with the library's lenient Mermaid-syntax
+ *  parsing elsewhere. */
+function optionsFromAttributes(el: Element): DiagramOptions {
+  const opts: DiagramOptions = {}
+
+  const theme = readEnum(el.getAttribute('data-amd-theme'), AMD_THEMES)
+  if (theme !== undefined) opts.theme = theme
+
+  const animate = readBool(el.getAttribute('data-amd-animate'))
+  if (animate !== undefined) opts.animate = animate
+
+  const trigger = readEnum(el.getAttribute('data-amd-trigger'), AMD_TRIGGERS)
+  if (trigger !== undefined) opts.trigger = trigger
+
+  // The `data-animated-mermaid="click"|"auto"` marker value is shorthand for
+  // `data-amd-advance`; the explicit attribute wins when both are present.
+  const advance =
+    readEnum(el.getAttribute('data-amd-advance'), AMD_ADVANCES) ??
+    readEnum(el.getAttribute('data-animated-mermaid'), AMD_ADVANCES)
+  if (advance !== undefined) opts.advance = advance
+
+  const keyboard = readBool(el.getAttribute('data-amd-keyboard'))
+  if (keyboard !== undefined) opts.keyboard = keyboard
+
+  const replayOnScroll = readBool(el.getAttribute('data-amd-replay-on-scroll'))
+  if (replayOnScroll !== undefined) opts.replayOnScroll = replayOnScroll
+
+  const stepDuration = readNumber(el.getAttribute('data-amd-step-duration'))
+  if (stepDuration !== undefined) opts.stepDuration = stepDuration
+
+  const stepDelay = readNumber(el.getAttribute('data-amd-step-delay'))
+  if (stepDelay !== undefined) opts.stepDelay = stepDelay
+
+  const padding = readNumber(el.getAttribute('data-amd-padding'))
+  if (padding !== undefined) opts.padding = padding
+
+  const width = readSizeOrLiteral(el.getAttribute('data-amd-width'), '100%')
+  if (width !== undefined) opts.width = width
+
+  const height = readSizeOrLiteral(el.getAttribute('data-amd-height'), 'auto')
+  if (height !== undefined) opts.height = height
+
+  const fontFamily = el.getAttribute('data-amd-font-family')
+  if (fontFamily !== null) opts.fontFamily = fontFamily
+
+  return opts
+}
+
+export function init(
+  root: ParentNode = document,
+  defaults: DiagramOptions = {},
+): DiagramController[] {
   const controllers: DiagramController[] = []
   for (const el of [...root.querySelectorAll(INIT_SELECTOR)]) {
     const source = el.textContent ?? ''
+    const options: DiagramOptions = { ...defaults, ...optionsFromAttributes(el) }
     const div = document.createElement('div')
     el.replaceWith(div)
     try {
-      controllers.push(render(div, source))
+      controllers.push(render(div, source, options))
     } catch (err) {
       // One bad diagram must not break the rest of the page: restore the
       // original element and keep scanning.
