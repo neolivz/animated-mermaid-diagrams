@@ -51,11 +51,11 @@ describe('buildFlowchartSvg', () => {
   })
 
   it('animates layer by layer: nodes, then connecting edges, then next layer', () => {
-    // layers: [start], [check], [builder, legacy]
+    // layers: [start], [check], [editor, readonly]
     // steps: L0 nodes, edges→L1, L1 nodes, edges→L2, L2 nodes
     expect(steps).toHaveLength(5)
     expect(steps[0]).toHaveLength(1) // start node group
-    expect(steps[4]).toHaveLength(2) // builder + legacy node groups
+    expect(steps[4]).toHaveLength(2) // editor + readonly node groups
   })
 
   it('sets an aria-label', () => {

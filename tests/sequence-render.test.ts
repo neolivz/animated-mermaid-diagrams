@@ -13,7 +13,7 @@ const CONFIG: SequenceConfig = {
     { from: 'user', to: 'app', text: 'Click delete' },
     { from: 'app', to: 'backend', text: 'GET usage' },
     { from: 'backend', to: 'app', text: 'Returns list', type: 'response' },
-    { over: 'app', text: 'Route guard', type: 'note' },
+    { over: 'app', text: 'Router intercepts', type: 'note' },
     { from: 'app', to: 'app', text: 'self check' },
     { from: 'app', to: 'user', text: 'Done', type: 'response', highlight: true },
   ],
