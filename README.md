@@ -284,6 +284,7 @@ interface DiagramOptions {
   theme?: 'light' | 'dark' | 'auto' | ThemeTokens
   animate?: boolean
   trigger?: 'onScroll' | 'immediate' | 'manual'
+  advance?: 'auto' | 'click'
   stepDuration?: number
   stepDelay?: number
   replayOnScroll?: boolean
@@ -301,6 +302,7 @@ interface DiagramOptions {
 | `theme` | `'light' \| 'dark' \| 'auto' \| ThemeTokens` | `'auto'` | `'auto'` reads `prefers-color-scheme`. Pass a `ThemeTokens` object for custom colors |
 | `animate` | `boolean` | `true` | Set `false` to render final state immediately |
 | `trigger` | `'onScroll' \| 'immediate' \| 'manual'` | `'onScroll'` | When to start animation |
+| `advance` | `'auto' \| 'click'` | `'auto'` | Advance steps on click instead of a timer; on flowcharts, click a revealed node to expand its branches |
 | `stepDuration` | `number` | `400` | Milliseconds per step animation |
 | `stepDelay` | `number` | `100` | Milliseconds between steps |
 | `replayOnScroll` | `boolean` | `true` | Replay animation when diagram re-enters viewport |
@@ -354,6 +356,15 @@ Built-in themes:
 - `onScroll` — IntersectionObserver fires animation when container enters viewport. Replays when it re-enters (controlled by `replayOnScroll`). Falls back to immediate play where IntersectionObserver is unavailable.
 - `immediate` — animate on render
 - `manual` — returns a controller only, does not auto-play
+
+### Click-to-advance (`advance: 'click'`)
+
+The intro still reveals on whatever `trigger` fires (immediate on render, on scroll into view, or on `play()` for `manual`); after that the diagram waits for the viewer instead of a timer:
+
+- **Sequence and state diagrams** advance one step per click anywhere on the diagram — a lightweight "next" control with no buttons to build.
+- **Flowcharts** work differently: revealed nodes become clickable (cursor turns to a pointer). Clicking a revealed node animates in its outgoing edges and whatever nodes they lead to, so the viewer walks the graph branch by branch. Clicking empty space, or a node that isn't revealed yet, does nothing.
+
+`onComplete` fires once every step has been revealed by clicking; `onStepStart` still fires per step as it's revealed. Reduced-motion and `animate: false` are unaffected — they always show the final state immediately, ignoring `advance`.
 
 ### Controller (returned from all functions)
 

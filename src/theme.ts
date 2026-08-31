@@ -44,6 +44,7 @@ export function resolveOptions(o: DiagramOptions = {}): ResolvedOptions {
     theme: resolveTheme(o.theme),
     animate: o.animate ?? true,
     trigger: o.trigger ?? 'onScroll',
+    advance: o.advance ?? 'auto',
     stepDuration: o.stepDuration ?? 400,
     stepDelay: o.stepDelay ?? 100,
     replayOnScroll: o.replayOnScroll ?? true,

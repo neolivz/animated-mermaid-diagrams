@@ -151,6 +151,45 @@ describe('createDiagram', () => {
     expect(els[2].style.opacity).toBe('')
   })
 
+  it('advance:click reveals one step per click and fires onComplete once', () => {
+    const { container, svg, els, steps } = fixture()
+    const onComplete = vi.fn()
+    createDiagram(
+      container, svg, steps,
+      resolveOptions({ trigger: 'immediate', advance: 'click', onComplete }),
+      1,
+    )
+    // intro (offset step 0) revealed immediately; later steps wait for clicks.
+    expect(els[0].style.opacity).toBe('')
+    expect(els[1].style.opacity).toBe('0')
+    expect(els[2].style.opacity).toBe('0')
+
+    svg.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    expect(els[1].style.opacity).toBe('')
+    expect(els[2].style.opacity).toBe('0')
+    expect(onComplete).not.toHaveBeenCalled()
+
+    svg.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    expect(els[2].style.opacity).toBe('')
+    expect(onComplete).toHaveBeenCalledTimes(1)
+
+    // Nothing left to reveal: further clicks are no-ops.
+    svg.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    expect(onComplete).toHaveBeenCalledTimes(1)
+  })
+
+  it('advance:click destroy() removes the click listener', () => {
+    const { container, svg, els, steps } = fixture()
+    const ctrl = createDiagram(
+      container, svg, steps,
+      resolveOptions({ trigger: 'immediate', advance: 'click' }),
+      1,
+    )
+    ctrl.destroy()
+    svg.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    expect(els[1].style.opacity).toBe('0') // unchanged — listener was removed
+  })
+
   it('wires pause/resume through to the animator', () => {
     const { container, svg, steps } = fixture()
     const onStepStart = vi.fn()

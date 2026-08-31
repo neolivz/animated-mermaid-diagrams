@@ -1,5 +1,5 @@
-import type { AnimStep } from '../animator'
-import { createDiagram } from '../controller'
+import type { AnimStep, AnimTarget } from '../animator'
+import { createDiagram, type ClickTarget } from '../controller'
 import { graphLayout, type PlacedNode } from '../graph-layout'
 import { resolveOptions } from '../theme'
 import { arrowHead, el, estimateTextWidth, svgRoot, textEl } from '../svg'
@@ -99,7 +99,7 @@ const HEAD_LEN = 10
 export function buildFlowchartSvg(
   config: FlowchartConfig,
   opts: ResolvedOptions,
-): { svg: SVGSVGElement; steps: AnimStep[] } {
+): { svg: SVGSVGElement; steps: AnimStep[]; clickTargets?: ClickTarget[] } {
   const t = opts.theme
   const direction = config.direction ?? 'TB'
   const horizontal = direction === 'LR' || direction === 'RL'
@@ -130,7 +130,13 @@ export function buildFlowchartSvg(
   }
 
   // Edge elements first (paths render under nodes).
-  const edgeTargets: { anim: AnimStep; targetLayer: number; sourceLayer: number }[] = []
+  const edgeTargets: {
+    anim: AnimStep
+    targetLayer: number
+    sourceLayer: number
+    from: string
+    to: string
+  }[] = []
   let edgeCursor = 0
   for (const edge of config.edges) {
     const s = layout.nodes.get(edge.from)
@@ -184,7 +190,7 @@ export function buildFlowchartSvg(
           trackX(s.x, rx + 44 + estimateTextWidth(edge.label, 12) + 6)
         }
       }
-      edgeTargets.push({ anim, targetLayer: e.layer, sourceLayer: s.layer })
+      edgeTargets.push({ anim, targetLayer: e.layer, sourceLayer: s.layer, from: edge.from, to: edge.to })
       continue
     }
 
@@ -235,35 +241,115 @@ export function buildFlowchartSvg(
       labelLayer.appendChild(g)
       anim.push({ el: g, kind: 'fade' })
     }
-    edgeTargets.push({ anim, targetLayer: placed.targetLayer, sourceLayer: placed.sourceLayer })
+    edgeTargets.push({
+      anim,
+      targetLayer: placed.targetLayer,
+      sourceLayer: placed.sourceLayer,
+      from: edge.from,
+      to: edge.to,
+    })
   }
 
   // Node groups on top.
-  const nodeAnimByLayer: AnimStep[] = layout.layers.map(() => [])
+  const nodeScaleTarget = new Map<string, AnimTarget>()
   for (const [id, p] of layout.nodes) {
     const n = nodeById.get(id)
     if (!n) continue
     const g = el('g', {}, [nodeShape(n, p, t)])
     g.appendChild(textEl(p.x + p.w / 2, p.y + p.h / 2, n.text, { color: t.text, size: 13 }))
     root.appendChild(g)
-    nodeAnimByLayer[p.layer].push({ el: g, kind: 'scale' })
+    nodeScaleTarget.set(id, { el: g, kind: 'scale' })
   }
   root.appendChild(labelLayer)
 
-  // Interleave: L0 nodes, edges→L1, L1 nodes, ...; back/self-edges last.
-  const steps: AnimStep[] = []
-  const backEdges: AnimStep = []
-  for (let layer = 0; layer < layout.layers.length; layer++) {
-    if (layer > 0) {
-      const into = edgeTargets.filter((e) => e.targetLayer === layer && e.sourceLayer < layer)
-      if (into.length > 0) steps.push(into.flatMap((e) => e.anim))
+  let steps: AnimStep[]
+  let clickTargets: ClickTarget[] | undefined
+
+  if (opts.advance === 'click') {
+    // BFS-expansion structure: step 0 reveals the roots (layer 0), then one
+    // step per node in BFS order containing that node's outgoing edge anims
+    // (including its self-loop, if any) plus the scale anims of any targets
+    // not yet revealed by an earlier branch.
+    const outgoingBySource = new Map<string, typeof edgeTargets>()
+    for (const et of edgeTargets) {
+      const arr = outgoingBySource.get(et.from)
+      if (arr) arr.push(et)
+      else outgoingBySource.set(et.from, [et])
     }
-    steps.push(nodeAnimByLayer[layer])
+
+    const clickSteps: AnimStep[] = []
+    const revealsAt = new Map<string, number>()
+    const expandsAt = new Map<string, number>()
+    const visited = new Set<string>()
+    const queued = new Set<string>()
+    const queue: string[] = []
+
+    const roots = layout.layers[0] ?? []
+    clickSteps.push(roots.map((id) => nodeScaleTarget.get(id)!).filter(Boolean))
+    for (const id of roots) {
+      revealsAt.set(id, 0)
+      queue.push(id)
+      queued.add(id)
+    }
+
+    while (queue.length > 0) {
+      const id = queue.shift()!
+      if (visited.has(id)) continue
+      visited.add(id)
+      const outgoing = outgoingBySource.get(id)
+      if (!outgoing || outgoing.length === 0) continue // no outgoing edges: nothing to expand
+
+      const stepAnim: AnimStep = []
+      for (const et of outgoing) stepAnim.push(...et.anim)
+      const stepIndex = clickSteps.length
+      for (const et of outgoing) {
+        if (!revealsAt.has(et.to)) {
+          revealsAt.set(et.to, stepIndex)
+          stepAnim.push(nodeScaleTarget.get(et.to)!)
+        }
+        if (!visited.has(et.to) && !queued.has(et.to)) {
+          queue.push(et.to)
+          queued.add(et.to)
+        }
+      }
+      clickSteps.push(stepAnim)
+      expandsAt.set(id, stepIndex)
+    }
+
+    // Nodes unreachable from any root (disconnected component) still need to
+    // appear somewhere; they get no click target since nothing expands them.
+    const orphanIds = [...layout.nodes.keys()].filter((id) => !revealsAt.has(id))
+    if (orphanIds.length > 0) {
+      const idx = clickSteps.length
+      clickSteps.push(orphanIds.map((id) => nodeScaleTarget.get(id)!))
+      for (const id of orphanIds) revealsAt.set(id, idx)
+    }
+
+    steps = clickSteps
+    clickTargets = [...expandsAt.entries()].map(([id, expands]) => ({
+      el: nodeScaleTarget.get(id)!.el,
+      revealsAt: revealsAt.get(id)!,
+      expands,
+    }))
+  } else {
+    // Interleave: L0 nodes, edges→L1, L1 nodes, ...; back/self-edges last.
+    const nodeAnimByLayer: AnimStep[] = layout.layers.map((ids) =>
+      ids.map((id) => nodeScaleTarget.get(id)!),
+    )
+    steps = []
+    const backEdges: AnimStep = []
+    for (let layer = 0; layer < layout.layers.length; layer++) {
+      if (layer > 0) {
+        const into = edgeTargets.filter((e) => e.targetLayer === layer && e.sourceLayer < layer)
+        if (into.length > 0) steps.push(into.flatMap((e) => e.anim))
+      }
+      steps.push(nodeAnimByLayer[layer])
+    }
+    for (const e of edgeTargets) {
+      if (e.targetLayer <= e.sourceLayer) backEdges.push(...e.anim)
+    }
+    if (backEdges.length > 0) steps.push(backEdges)
   }
-  for (const e of edgeTargets) {
-    if (e.targetLayer <= e.sourceLayer) backEdges.push(...e.anim)
-  }
-  if (backEdges.length > 0) steps.push(backEdges)
 
   const pad = opts.padding
   const w = layout.width + extraLeft + extraRight + pad * 2
@@ -275,11 +361,15 @@ export function buildFlowchartSvg(
   root.setAttribute('transform', `translate(${pad + extraLeft},${pad + extraTop})`)
   svg.appendChild(root)
 
-  return { svg, steps: steps.filter((st) => st.length > 0) }
+  // Click mode's clickTargets reference specific step indices — filtering
+  // would desync them, but every click-mode step is non-empty by
+  // construction anyway. Only auto mode's interleave can produce empties.
+  const finalSteps = opts.advance === 'click' ? steps : steps.filter((st) => st.length > 0)
+  return { svg, steps: finalSteps, clickTargets }
 }
 
 export function flowchart(container: HTMLElement, config: FlowchartConfig): DiagramController {
   const opts = resolveOptions(config.options)
-  const { svg, steps } = buildFlowchartSvg(config, opts)
-  return createDiagram(container, svg, steps, opts, 0)
+  const { svg, steps, clickTargets } = buildFlowchartSvg(config, opts)
+  return createDiagram(container, svg, steps, opts, 0, opts.advance === 'click' ? clickTargets : undefined)
 }

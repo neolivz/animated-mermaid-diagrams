@@ -215,3 +215,71 @@ describe('multi-tier and bidirectional edge routing (dagre)', () => {
     expect(new Set(ds).size).toBe(2)
   })
 })
+
+describe("advance: 'click'", () => {
+  const clickOpts = resolveOptions({ theme: 'light', advance: 'click' })
+
+  it('step 0 contains only the root node(s)', () => {
+    const { steps } = buildFlowchartSvg(CONFIG, clickOpts)
+    expect(steps[0]).toHaveLength(1)
+  })
+
+  it('returns click targets with valid step indices', () => {
+    const { steps, clickTargets } = buildFlowchartSvg(CONFIG, clickOpts)
+    expect(clickTargets).toBeDefined()
+    // start (expands to reveal `check`) and check (expands to reveal editor+readonly);
+    // editor/readonly have no outgoing edges, so no click target of their own.
+    expect(clickTargets).toHaveLength(2)
+    for (const ct of clickTargets!) {
+      expect(ct.revealsAt).toBeGreaterThanOrEqual(0)
+      expect(ct.revealsAt).toBeLessThan(steps.length)
+      expect(ct.expands).toBeGreaterThan(ct.revealsAt)
+      expect(ct.expands).toBeLessThan(steps.length)
+    }
+  })
+
+  it('clicking a revealed node expands its branch; clicking an unrevealed node is a no-op', () => {
+    const container = document.createElement('div')
+    const ctrl = flowchart(container, { ...CONFIG, options: { advance: 'click', trigger: 'immediate' } })
+    const groupFor = (text: string): SVGGElement =>
+      ([...container.querySelectorAll('text')].find((t) => t.textContent === text)!.closest('g') as SVGGElement)
+
+    const startGroup = groupFor('Navigate')
+    const checkGroup = groupFor('Editable?')
+    const editorGroup = groupFor('Open editor')
+
+    // Root revealed immediately; downstream nodes wait for a click.
+    expect(startGroup.style.opacity).toBe('')
+    expect(checkGroup.style.opacity).toBe('0')
+    expect(editorGroup.style.opacity).toBe('0')
+
+    // Clicking `check` before it's revealed does nothing.
+    checkGroup.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    expect(checkGroup.style.opacity).toBe('0')
+
+    // Clicking the revealed root expands its outgoing edge + `check`.
+    startGroup.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    expect(checkGroup.style.opacity).toBe('')
+    expect(editorGroup.style.opacity).toBe('0') // not expanded yet
+
+    ctrl.destroy()
+  })
+
+  it('toggles cursor style on click targets as they become clickable/expanded', () => {
+    const container = document.createElement('div')
+    const ctrl = flowchart(container, { ...CONFIG, options: { advance: 'click', trigger: 'immediate' } })
+    const groupFor = (text: string): SVGGElement =>
+      ([...container.querySelectorAll('text')].find((t) => t.textContent === text)!.closest('g') as SVGGElement)
+    const startGroup = groupFor('Navigate')
+    const checkGroup = groupFor('Editable?')
+
+    expect(startGroup.style.cursor).toBe('pointer')
+    expect(checkGroup.style.cursor).toBe('')
+
+    startGroup.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    expect(startGroup.style.cursor).toBe('') // fully expanded now
+    expect(checkGroup.style.cursor).toBe('pointer')
+
+    ctrl.destroy()
+  })
+})

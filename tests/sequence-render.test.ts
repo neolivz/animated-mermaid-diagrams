@@ -141,3 +141,23 @@ describe('sequence()', () => {
     expect(container.querySelector('svg')).toBeNull()
   })
 })
+
+describe("advance: 'click'", () => {
+  it('reveals the intro immediately and waits for a click to advance to the first message', () => {
+    const container = document.createElement('div')
+    const ctrl = sequence(container, { ...CONFIG, options: { advance: 'click', trigger: 'immediate' } })
+    const svg = container.querySelector('svg')!
+
+    const userText = [...svg.querySelectorAll('text')].find((t) => t.textContent === 'User')!
+    const userGroup = userText.closest('g') as SVGGElement
+    expect(userGroup.style.opacity).toBe('') // intro revealed immediately
+
+    const firstMsgText = [...svg.querySelectorAll('text')].find((t) => t.textContent === CONFIG.steps[0].text)!
+    expect(firstMsgText.style.opacity).toBe('0') // first message waits for a click
+
+    svg.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    expect(firstMsgText.style.opacity).toBe('')
+
+    ctrl.destroy()
+  })
+})

@@ -17,6 +17,10 @@ export interface DiagramOptions {
   theme?: 'light' | 'dark' | 'auto' | ThemeTokens
   animate?: boolean
   trigger?: 'onScroll' | 'immediate' | 'manual'
+  /** 'auto' (default) plays on a timer; 'click' waits for the viewer to click
+   *  through each step (sequence/state) or click revealed flowchart nodes to
+   *  expand their branches. */
+  advance?: 'auto' | 'click'
   stepDuration?: number
   stepDelay?: number
   replayOnScroll?: boolean
@@ -32,6 +36,7 @@ export interface ResolvedOptions {
   theme: ThemeTokens
   animate: boolean
   trigger: 'onScroll' | 'immediate' | 'manual'
+  advance: 'auto' | 'click'
   stepDuration: number
   stepDelay: number
   replayOnScroll: boolean

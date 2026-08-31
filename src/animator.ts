@@ -202,6 +202,18 @@ export class Animator {
     }, this.remaining)
   }
 
+  /** Reveal one step immediately (used by click-to-advance modes). */
+  revealStep(i: number): void {
+    if (this.destroyed || i < 0 || i >= this.steps.length) return
+    this.opts.onStepStart?.(i)
+    for (const t of this.steps[i]) animateTarget(t, this.opts.stepDuration)
+    this.nextIndex = Math.max(this.nextIndex, i + 1)
+  }
+
+  get stepCount(): number {
+    return this.steps.length
+  }
+
   /** Show steps 0..n (inclusive) in their completed state; later steps hidden. */
   goToStep(n: number): void {
     if (this.destroyed) return

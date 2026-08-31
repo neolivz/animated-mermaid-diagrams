@@ -55,6 +55,7 @@ describe('resolveOptions', () => {
     expect(o.padding).toBe(40)
     expect(o.fontFamily).toBe('system-ui, sans-serif')
     expect(o.theme).toBe(lightTheme)
+    expect(o.advance).toBe('auto')
   })
 
   it('respects overrides', () => {

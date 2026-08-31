@@ -43,6 +43,18 @@
   </section>
 
   <section>
+    <h2>Click to explore (flowchart)</h2>
+    <p>Click a revealed node to expand its outgoing branches — nothing plays on a timer.</p>
+    <div id="flow-click"></div>
+  </section>
+
+  <section>
+    <h2>Click to step (sequence)</h2>
+    <p>Click anywhere on the diagram to advance one step at a time.</p>
+    <div id="seq-click"></div>
+  </section>
+
+  <section>
     <h2>Auto-init from &lt;pre&gt;</h2>
     <pre class="animated-mermaid-diagrams">
 sequenceDiagram
@@ -102,6 +114,25 @@ sequenceDiagram
         B -->|yes| C[Open editor]
         B -->|no| D[Show read-only view]
     `)
+
+    render(document.getElementById('flow-click'), `
+      flowchart TD
+        S([Start]) --> B[Validate]
+        B --> T{OK?}
+        T -->|no| N[Reject]
+        T -->|yes| P[Process]
+        P --> C((Done))
+        N -.-> B
+    `, { advance: 'click', trigger: 'immediate' })
+
+    render(document.getElementById('seq-click'), `
+      sequenceDiagram
+        actor Client
+        participant Server
+        Client->>Server: Request
+        Server-->>Client: Response
+        Client->>Server: Ack
+    `, { advance: 'click', trigger: 'immediate' })
 
     const ctrl = stateDiagram(document.getElementById('state'), {
       states: [
