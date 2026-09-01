@@ -4,7 +4,7 @@ Drop-in animated rendering for Mermaid diagrams. Accepts Mermaid syntax or a JS 
 
 **[Live demo →](https://neolivz.github.io/animated-mermaid-diagrams/demo/)** — every diagram type animated, click-to-explore, keyboard control. [Side-by-side with Mermaid](https://neolivz.github.io/animated-mermaid-diagrams/demo/compare.html).
 
-![Auto-play sequence diagram, then click-to-explore flowchart](.github/demo.gif)
+![Animated sequence, click-to-explore flowchart, and mindmap](.github/demo.gif)
 
 ## Install
 
@@ -14,7 +14,7 @@ npm install animated-mermaid-diagrams
 
 ## Vision
 
-Animate every Mermaid diagram type. `0.6.0` ships all thirteen core types: sequence, flowchart, state, user journey, timeline, class, ER, pie, Gantt, mindmap, sankey, git graph, and architecture.
+Animate every Mermaid diagram type — done. `1.0.0` ships all thirteen core types with a stable API: sequence, flowchart, state, user journey, timeline, class, ER, pie, Gantt, mindmap, sankey, git graph, and architecture.
 
 ### Roadmap
 

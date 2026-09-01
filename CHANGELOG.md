@@ -4,6 +4,16 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.0.0]
+
+The stability release. No new features — 1.0.0 is a promise: the public API (render/init, the
+thirteen per-type renderers and parsers, the config types, `DiagramOptions`, the controller, and
+the theme tokens) is now stable, and breaking changes will require a major version.
+
+### Changed
+
+- README demo GIF re-recorded against the current thirteen-type demo.
+
 ## [0.6.1]
 
 ### Fixed
