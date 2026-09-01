@@ -406,7 +406,7 @@ The intro still reveals on whatever `trigger` fires (immediate on render, on scr
 - **Sequence and state diagrams** advance one step per click anywhere on the diagram — a lightweight "next" control with no buttons to build.
 - **Flowcharts** work differently: revealed nodes become clickable (cursor turns to a pointer). Clicking a revealed node animates in its outgoing edges and whatever nodes they lead to, so the viewer walks the graph branch by branch. Clicking empty space, or a node that isn't revealed yet, does nothing.
 
-`onComplete` fires once every step has been revealed by clicking; `onStepStart` still fires per step as it's revealed. `pause()` and `resume()` are inert in click mode — nothing runs on a timer to pause, and a stray `resume()` must not start timed playback behind the viewer's back. Reduced-motion and `animate: false` are unaffected — they always show the final state immediately, ignoring `advance`.
+`onComplete` fires once every step has been revealed by clicking; `onStepStart` still fires per step as it's revealed. `pause()` and `resume()` are inert in click mode — nothing runs on a timer to pause, and a stray `resume()` must not start timed playback behind the viewer's back. Reduced-motion and `animate: false` are unaffected — they always show the final state immediately, ignoring `advance`. With the default `onScroll` trigger and `replayOnScroll: true`, scrolling away and back never discards click progress once the viewer has interacted — call `play()` to restart the diagram explicitly.
 
 ### Controller (returned from all functions)
 

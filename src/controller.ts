@@ -35,6 +35,12 @@ export function createDiagram(
   // --- click-to-advance state (inert unless clickMode) ---
   const revealed = new Set<number>()
   const userStepCount = steps.length - stepIndexOffset
+  // Tracks whether the viewer has driven any reveal themselves (click, keyboard
+  // advance, or an explicit goToStep). Only meaningful in click mode: it's what
+  // lets an onScroll+replayOnScroll re-entry tell an untouched diagram (safe to
+  // re-arm) from one with live progress (must be left alone). play()/reset()
+  // clear it since those are deliberate restarts.
+  let userInteracted = false
 
   // Assigned right below; referenced here only inside closures that run after
   // that assignment (the Animator's own onStepStart callback, keyboard
@@ -144,6 +150,7 @@ export function createDiagram(
       revealed.clear()
       for (let i = 0; i < upto; i++) revealed.add(i)
       syncTargets()
+      userInteracted = true
     }
     syncAria()
   }
@@ -163,13 +170,19 @@ export function createDiagram(
       for (const ct of clickTargets) {
         const clickable = (): boolean => revealed.has(ct.revealsAt) && !revealed.has(ct.expands)
         const onClick = (): void => {
-          if (clickable()) reveal(ct.expands) // mouse: no focus stealing
+          if (clickable()) {
+            userInteracted = true
+            reveal(ct.expands) // mouse: no focus stealing
+          }
         }
         const onKeydown = (e: Event): void => {
           const ke = e as KeyboardEvent
           if (!isActivationKey(ke)) return
           if (ke.key === ' ') ke.preventDefault()
-          if (clickable()) revealWithFocusHandoff(ct)
+          if (clickable()) {
+            userInteracted = true
+            revealWithFocusHandoff(ct)
+          }
         }
         ct.el.addEventListener('click', onClick)
         ct.el.addEventListener('keydown', onKeydown)
@@ -185,6 +198,7 @@ export function createDiagram(
       // reveal order, so the svg carries slider semantics (aria-valuenow is
       // the current step).
       const trigger = (): void => {
+        userInteracted = true
         const next = nextUnrevealed()
         if (next !== null) reveal(next)
       }
@@ -288,6 +302,7 @@ export function createDiagram(
   }
 
   const start = (): void => {
+    userInteracted = false
     if (animate) startOrPlay()
     else anim.showAll()
   }
@@ -305,7 +320,13 @@ export function createDiagram(
       observer = new IntersectionObserver(
         (entries) => {
           for (const e of entries) {
-            if (e.isIntersecting && (!played || opts.replayOnScroll)) {
+            // Click mode + replayOnScroll: only an untouched diagram re-arms on
+            // re-entry — once the viewer has interacted, their progress must
+            // survive scrolling away and back. Auto mode is unaffected: clickMode
+            // is false there, so this collapses to the original `!played ||
+            // opts.replayOnScroll`.
+            const armable = !played || (opts.replayOnScroll && !(clickMode && userInteracted))
+            if (e.isIntersecting && armable) {
               played = true
               startOrPlay()
             }
@@ -326,6 +347,7 @@ export function createDiagram(
         revealed.clear()
         syncTargets()
       }
+      userInteracted = false
       syncAria()
     },
     pause: () => anim.pause(),

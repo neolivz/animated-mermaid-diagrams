@@ -489,6 +489,77 @@ describe('createDiagram', () => {
     ctrl.destroy()
   })
 
+  it('advance:click + onScroll re-entry preserves progress once the user has interacted', () => {
+    const { container, svg, els, steps } = fixture()
+    const ctrl = createDiagram(
+      container, svg, steps,
+      resolveOptions({ advance: 'click' }), // trigger:onScroll, replayOnScroll:true (defaults)
+      1,
+    )
+    FakeIO.instances[0].enter() // arms: intro revealed
+    expect(els[0].style.opacity).toBe('')
+    expect(els[1].style.opacity).toBe('0')
+    expect(svg.getAttribute('aria-valuenow')).toBe('0')
+
+    svg.dispatchEvent(new MouseEvent('click', { bubbles: true })) // user reveals one step
+    expect(els[1].style.opacity).toBe('')
+    expect(svg.getAttribute('aria-valuenow')).toBe('1')
+
+    FakeIO.instances[0].enter() // scroll away and back
+    expect(els[1].style.opacity).toBe('') // progress preserved — not wiped back to intro
+    expect(els[2].style.opacity).toBe('0')
+    expect(svg.getAttribute('aria-valuenow')).toBe('1') // unchanged
+
+    ctrl.destroy()
+  })
+
+  it('advance:click + onScroll re-entry re-arms an untouched diagram', () => {
+    const { container, svg, els, steps } = fixture()
+    const ctrl = createDiagram(
+      container, svg, steps,
+      resolveOptions({ advance: 'click' }),
+      1,
+    )
+    FakeIO.instances[0].enter()
+    expect(els[0].style.opacity).toBe('')
+    expect(els[1].style.opacity).toBe('0')
+
+    // No interaction happened — re-entry re-arms without error, landing back
+    // on the intro state (nothing to preserve).
+    FakeIO.instances[0].enter()
+    expect(els[0].style.opacity).toBe('')
+    expect(els[1].style.opacity).toBe('0')
+    expect(svg.getAttribute('aria-valuenow')).toBe('0')
+
+    ctrl.destroy()
+  })
+
+  it('advance:click ctrl.play() clears the interacted flag so a later re-entry re-arms again', () => {
+    const { container, svg, els, steps } = fixture()
+    const ctrl = createDiagram(
+      container, svg, steps,
+      resolveOptions({ advance: 'click' }),
+      1,
+    )
+    FakeIO.instances[0].enter()
+    svg.dispatchEvent(new MouseEvent('click', { bubbles: true })) // interact
+    expect(els[1].style.opacity).toBe('')
+
+    ctrl.play() // explicit restart clears the flag and wipes progress
+    expect(els[1].style.opacity).toBe('0')
+
+    FakeIO.instances[0].enter() // re-entry re-arms again (flag was cleared)
+    expect(els[0].style.opacity).toBe('')
+    expect(els[1].style.opacity).toBe('0')
+
+    svg.dispatchEvent(new MouseEvent('click', { bubbles: true })) // interact again
+    expect(els[1].style.opacity).toBe('')
+    FakeIO.instances[0].enter() // now preserved again
+    expect(els[1].style.opacity).toBe('')
+
+    ctrl.destroy()
+  })
+
   it("advance:click (svg-level) exposes slider semantics that increment per click/ArrowRight", () => {
     const { container, svg, steps } = fixture()
     const ctrl = createDiagram(
