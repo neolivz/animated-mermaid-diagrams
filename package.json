@@ -31,7 +31,8 @@
     "prepublishOnly": "npm test && npm run typecheck && npm run build",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:e2e": "playwright test"
   },
   "keywords": [
     "mermaid",
@@ -43,6 +44,7 @@
     "state-diagram"
   ],
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "jsdom": "^30.0.1",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
