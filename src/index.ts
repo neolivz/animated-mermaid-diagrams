@@ -9,10 +9,16 @@ import { parseJourney } from './journey/parse'
 import { journey } from './journey/render'
 import { parseTimeline } from './timeline/parse'
 import { timeline } from './timeline/render'
+import { parseClass } from './class/parse'
+import { classDiagram } from './class/render'
+import { parseEr } from './er/parse'
+import { erDiagram } from './er/render'
 import type {
+  ClassConfig,
   DiagramConfig,
   DiagramController,
   DiagramOptions,
+  ErConfig,
   FlowchartConfig,
   JourneyConfig,
   SequenceConfig,
@@ -31,6 +37,8 @@ export function render(
     if (kind === 'flowchart') return flowchart(container, { ...parseFlowchart(input), options })
     if (kind === 'journey') return journey(container, { ...parseJourney(input), options })
     if (kind === 'timeline') return timeline(container, { ...parseTimeline(input), options })
+    if (kind === 'class') return classDiagram(container, { ...parseClass(input), options })
+    if (kind === 'er') return erDiagram(container, { ...parseEr(input), options })
     return stateDiagram(container, { ...parseState(input), options })
   }
   const merged = { ...input, options: { ...input.options, ...options } }
@@ -58,6 +66,20 @@ export function render(
       throw new Error('Sequence config requires "actors" and "steps" arrays')
     }
     return sequence(container, cfg)
+  }
+  if (merged.type === 'class' || (merged.type === undefined && 'classes' in merged)) {
+    const cfg = merged as ClassConfig
+    if (!Array.isArray(cfg.classes) || !Array.isArray(cfg.relations)) {
+      throw new Error('Class config requires "classes" and "relations" arrays')
+    }
+    return classDiagram(container, cfg)
+  }
+  if (merged.type === 'er' || (merged.type === undefined && 'entities' in merged)) {
+    const cfg = merged as ErConfig
+    if (!Array.isArray(cfg.entities) || !Array.isArray(cfg.relationships)) {
+      throw new Error('Er config requires "entities" and "relationships" arrays')
+    }
+    return erDiagram(container, cfg)
   }
   const sections = 'sections' in merged && Array.isArray(merged.sections) ? merged.sections : undefined
   // First-section semantics, matching the priority comment above: a config
@@ -199,11 +221,15 @@ export { flowchart } from './flowchart/render'
 export { stateDiagram } from './state/render'
 export { journey } from './journey/render'
 export { timeline } from './timeline/render'
+export { classDiagram } from './class/render'
+export { erDiagram } from './er/render'
 export { parseSequence } from './sequence/parse'
 export { parseFlowchart } from './flowchart/parse'
 export { parseState } from './state/parse'
 export { parseJourney } from './journey/parse'
 export { parseTimeline } from './timeline/parse'
+export { parseClass } from './class/parse'
+export { parseEr } from './er/parse'
 export { detectType } from './detect'
 export type { DetectedType } from './detect'
 export { lightTheme, darkTheme } from './theme'
@@ -235,4 +261,14 @@ export type {
   TimelineConfig,
   TimelineSection,
   TimelinePeriod,
+  ClassConfig,
+  ClassNode,
+  ClassRelation,
+  ClassRelationType,
+  ErConfig,
+  ErEntity,
+  ErAttribute,
+  ErRelationship,
+  ErCardinality,
+  ErKey,
 } from './types'

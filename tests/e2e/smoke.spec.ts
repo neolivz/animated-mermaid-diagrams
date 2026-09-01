@@ -27,7 +27,7 @@ test('all figures render without console errors', async ({ page }) => {
     if (m.type() === 'error') errors.push(m.text())
   })
   await page.goto(DEMO)
-  await expect(page.locator('svg')).toHaveCount(11)
+  await expect(page.locator('svg')).toHaveCount(13)
   expect(errors).toEqual([])
 })
 
@@ -37,6 +37,14 @@ test('journey and timeline figures play to completion on scroll', async ({ page 
   await expect.poll(() => visibleTexts(page, '#fig-09'), { timeout: 15000 }).toContain('Sit down')
   await page.locator('#fig-10').scrollIntoViewIfNeeded()
   await expect.poll(() => visibleTexts(page, '#fig-10'), { timeout: 15000 }).toContain('Twitch')
+})
+
+test('class and er figures play to completion on scroll', async ({ page }) => {
+  await page.goto(DEMO)
+  await page.locator('#fig-11').scrollIntoViewIfNeeded()
+  await expect.poll(() => visibleTexts(page, '#fig-11'), { timeout: 15000 }).toContain('Feather')
+  await page.locator('#fig-12').scrollIntoViewIfNeeded()
+  await expect.poll(() => visibleTexts(page, '#fig-12'), { timeout: 15000 }).toContain('LINE_ITEM')
 })
 
 test('scroll-triggered playback drives real WAAPI animations to completion', async ({ page }) => {

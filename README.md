@@ -14,7 +14,7 @@ npm install animated-mermaid-diagrams
 
 ## Vision
 
-Animate every Mermaid diagram type. Currently shipping (`0.3.0`): sequence, flowchart, state, user journey, and timeline diagrams. Subsequent releases add the remaining types.
+Animate every Mermaid diagram type. Currently shipping (`0.4.0`): sequence, flowchart, state, user journey, timeline, class, and ER diagrams. Subsequent releases add the remaining types.
 
 ### Roadmap
 
@@ -24,7 +24,7 @@ Milestones, in order (versions are indicative — features ship as they're ready
 | --------- | ------------- | ------ |
 | v1.0 | Sequence, Flowchart, State Diagram | shipped in 0.1.0–0.2.0 |
 | v1.1 | Journey, Timeline | shipped in 0.3.0 |
-| v1.2 | Class Diagram, ER Diagram | planned |
+| v1.2 | Class Diagram, ER Diagram | shipped in 0.4.0 |
 | v1.3 | Pie, Gantt | planned |
 | v2.0 | Mindmap, Sankey, Git Graph, Architecture | planned |
 
@@ -443,6 +443,129 @@ timeline(container, {
 - Periods reveal one at a time, left to right: the period box pops on the spine, then its events fade in below
 - Each section's header band appears with its first period
 
+### Class Diagram
+
+#### Mermaid input
+
+```js
+render(container, `
+  classDiagram
+    class Animal {
+      <<abstract>>
+      +String name
+      +isMammal() bool
+    }
+    Animal <|-- Duck
+    Animal <|-- Fish
+    Duck "1" --> "many" Feather : has
+`)
+```
+
+#### JS config input
+
+```js
+import { classDiagram } from 'animated-mermaid-diagrams'
+
+classDiagram(container, {
+  classes: [
+    { id: 'Animal', annotation: '<<abstract>>', attributes: ['+String name'], methods: ['+isMammal() bool'] },
+    { id: 'Duck', methods: ['+swim()'], highlight: true },
+    { id: 'Feather' },
+  ],
+  relations: [
+    { from: 'Duck', to: 'Animal', type: 'inheritance' },
+    { from: 'Duck', to: 'Feather', label: 'has', fromCardinality: '1', toCardinality: 'many' },
+  ],
+  direction: 'TB',
+})
+```
+
+Relations always draw their UML marker at the `to` end — for inheritance that means `to` is the parent (the parser normalizes `A <|-- B` into `{ from: 'B', to: 'A' }` for you).
+
+#### Class schema
+
+| Field | Type | Required | Description |
+| ----- | ---- | -------- | ----------- |
+| `id` | `string` | yes | Unique identifier |
+| `label` | `string` | no | Display name; defaults to `id`. Generics parse into it (`List~T~` → `List<T>`) |
+| `annotation` | `string` | no | e.g. `<<interface>>`, shown above the title |
+| `attributes` | `string[]` | no | Attribute rows, rendered verbatim |
+| `methods` | `string[]` | no | Method rows, rendered verbatim (parser: a member containing `(` is a method) |
+| `highlight` | `boolean \| 'red' \| 'green'` | no | Accent border color |
+
+#### Relation schema
+
+| Field | Type | Required | Description |
+| ----- | ---- | -------- | ----------- |
+| `from` / `to` | `string` | yes | Class ids; the marker renders at the `to` end |
+| `type` | `'inheritance' \| 'composition' \| 'aggregation' \| 'association' \| 'dependency' \| 'realization' \| 'link'` | no | Default `'association'`. dependency/realization render dashed |
+| `label` | `string` | no | Mid-edge label |
+| `fromCardinality` / `toCardinality` | `string` | no | Small labels near each end (`"1"`, `"many"`, `"0..*"` …) |
+| `dashed` | `boolean` | no | Dashed line for plain links (Mermaid `..`) |
+
+#### Animation behaviour
+
+- dagre layout ranks parents/wholes above children/parts (Mermaid's convention)
+- Top-layer classes scale in first, then relations draw layer by layer, each new class appearing as its relation reaches it; cyclic/self relations draw last
+
+### ER Diagram
+
+#### Mermaid input
+
+```js
+render(container, `
+  erDiagram
+    CUSTOMER ||--o{ ORDER : places
+    ORDER ||--|{ LINE_ITEM : contains
+    CUSTOMER {
+      string name
+      string custNumber PK
+    }
+`)
+```
+
+#### JS config input
+
+```js
+import { erDiagram } from 'animated-mermaid-diagrams'
+
+erDiagram(container, {
+  entities: [
+    { id: 'CUSTOMER', attributes: [
+      { type: 'string', name: 'name' },
+      { type: 'string', name: 'custNumber', keys: ['PK'] },
+    ]},
+    { id: 'ORDER', highlight: true },
+  ],
+  relationships: [
+    { from: 'CUSTOMER', to: 'ORDER', fromCardinality: 'exactly-one', toCardinality: 'zero-or-more', label: 'places' },
+  ],
+})
+```
+
+#### Entity schema
+
+| Field | Type | Required | Description |
+| ----- | ---- | -------- | ----------- |
+| `id` | `string` | yes | Unique identifier |
+| `label` | `string` | no | Display name; defaults to `id` (Mermaid alias `p[Person]` parses into it) |
+| `attributes` | `ErAttribute[]` | no | `{ type, name, keys?, comment? }` rows; `keys` are `'PK' \| 'FK' \| 'UK'` badges |
+| `highlight` | `boolean \| 'red' \| 'green'` | no | Accent border color |
+
+#### Relationship schema
+
+| Field | Type | Required | Description |
+| ----- | ---- | -------- | ----------- |
+| `from` / `to` | `string` | yes | Entity ids |
+| `fromCardinality` / `toCardinality` | `'zero-or-one' \| 'exactly-one' \| 'zero-or-more' \| 'one-or-more'` | no | Crow's-foot marker at each end; default `'exactly-one'` |
+| `identifying` | `boolean` | no | Default `true` (solid); `false` renders dashed (Mermaid `..`) |
+| `label` | `string` | no | Mid-edge label |
+
+#### Animation behaviour
+
+- dagre layout, entities scale in layer by layer with their attribute tables
+- Relationships draw with crow's-foot cardinality glyphs fading in at both ends
+
 ---
 
 ## Shared Options
@@ -616,6 +739,20 @@ The parser aims for compatibility with Mermaid's syntax as documented at mermaid
 - `period : event : event` — any number of events per period, including none
 - Continuation lines (`: another event`) append events to the previous period
 
+### Class diagram syntax
+
+- `class Name { ... }` blocks — members with `(` are methods, others attributes; `<<annotation>>` lines
+- Single-line members: `Name : +String field`
+- All relation arrows in both orientations: `<|--`/`--|>` (inheritance), `*--`/`--*` (composition), `o--`/`--o` (aggregation), `-->`/`<--` (association), `..>`/`<..` (dependency), `..|>`/`<|..` (realization), `--`/`..` (links)
+- Quoted cardinalities (`A "1" --> "many" B`) and `: label` suffixes
+- Generics (`List~T~` renders as `List<T>`), `direction TB|LR|BT|RL`
+
+### ER diagram syntax
+
+- Relationships: `A ||--o{ B : label` with all crow's-foot glyph pairs (`||`, `|o`/`o|`, `}|`/`|{`, `}o`/`o{`) and `--` (identifying) vs `..` (non-identifying)
+- Entity blocks: `NAME { type name PK "comment" }` — key lists (`PK, FK, UK`) and quoted comments
+- Entity aliases: `p[Person]`
+
 ### Simplifications
 
 A few constructs render with intentionally simplified semantics rather than full fidelity to Mermaid's behavior:
@@ -628,6 +765,8 @@ A few constructs render with intentionally simplified semantics rather than full
 - Flowchart edges with a subgraph id at either end (rather than a node inside it) are dropped
 - State transitions to/from a composite state are re-targeted to that composite's first child state
 - `par`/`and` sections animate in document order, not concurrently
+- Class diagrams: `namespace` blocks, notes, and click/link callbacks are ignored; association/dependency arrows use the library's filled arrowhead rather than UML's open arrow
+- ER diagrams: attribute comments parse into the config but don't render; a bare entity name on its own line is ignored — declare entities via a block or a relationship
 
 ### Recognized but not yet rendered (planned for v1.x)
 
@@ -737,7 +876,7 @@ sequenceDiagram
 - One dependency: [`@dagrejs/dagre`](https://github.com/dagrejs/dagre) (the same layout engine Mermaid uses) — external in the ESM/CJS builds (resolved from `node_modules` like any other dependency), bundled into the browser-global build since it has no module resolution of its own
 - Tree-shakeable: `import { sequence }` only pulls in the sequence renderer (ESM build only — the CJS build's `require` interop defeats shaking, and dagre stays a separate resolved import in either case)
 - Browser global: `window.AnimatedMermaidDiagrams` via `dist/animated-mermaid-diagrams.umd.js` (an IIFE build for `<script>` tags; it does not register with AMD/CommonJS loaders)
-- Bundle size: ~33KB gzipped for the browser-global build (enforced by a CI size budget) (all diagram types, dagre included) — most of that is dagre itself; the ESM/CJS builds are far smaller since dagre stays an external import there
+- Bundle size: ~37KB gzipped for the browser-global build (enforced by a CI size budget) (all diagram types, dagre included) — most of that is dagre itself; the ESM/CJS builds are far smaller since dagre stays an external import there
 - Mermaid parser is a lightweight subset parser — does NOT depend on the mermaid package
 
 ## Accessibility

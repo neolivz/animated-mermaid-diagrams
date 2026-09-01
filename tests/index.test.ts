@@ -8,6 +8,8 @@ import {
   stateDiagram,
   journey,
   timeline,
+  classDiagram,
+  erDiagram,
   lightTheme,
   darkTheme,
 } from '../src/index'
@@ -41,17 +43,29 @@ import type {
   TimelineConfig,
   TimelineSection,
   TimelinePeriod,
+  ClassConfig,
+  ClassNode,
+  ClassRelation,
+  ClassRelationType,
+  ErConfig,
+  ErEntity,
+  ErAttribute,
+  ErRelationship,
+  ErCardinality,
+  ErKey,
   ThemeTokens,
 } from '../src/index'
 
 describe('detectType', () => {
-  it('detects all five supported types', () => {
+  it('detects all seven supported types', () => {
     expect(detectType('sequenceDiagram\nA->>B: x')).toBe('sequence')
     expect(detectType('  flowchart TD\n  a-->b')).toBe('flowchart')
     expect(detectType('graph LR\n a-->b')).toBe('flowchart')
     expect(detectType('stateDiagram-v2\nA --> B')).toBe('state')
     expect(detectType('journey\ntitle Day\nsection S\nA: 4: Me')).toBe('journey')
     expect(detectType('timeline\ntitle History\n2002 : LinkedIn')).toBe('timeline')
+    expect(detectType('classDiagram\nA <|-- B')).toBe('class')
+    expect(detectType('erDiagram\nA ||--o{ B : has')).toBe('er')
   })
 
   it('skips comments and blank lines before the header', () => {
@@ -70,6 +84,8 @@ describe('render with mermaid text', () => {
     ['stateDiagram-v2\n[*] --> Idle\nIdle --> Done', 'state'],
     ['journey\ntitle Day\nsection S\nWake: 3: Me', 'journey'],
     ['timeline\ntitle History\n2002 : LinkedIn', 'timeline'],
+    ['classDiagram\nAnimal <|-- Duck\nAnimal : +int age', 'class'],
+    ['erDiagram\nCUSTOMER ||--o{ ORDER : places', 'er'],
   ])('renders %s → svg', (text) => {
     const container = document.createElement('div')
     const ctrl = render(container, text, { trigger: 'manual' })
@@ -366,12 +382,14 @@ describe('render config validation', () => {
 })
 
 describe('public exports', () => {
-  it('exposes the five direct renderers', () => {
+  it('exposes the seven direct renderers', () => {
     expect(typeof sequence).toBe('function')
     expect(typeof flowchart).toBe('function')
     expect(typeof stateDiagram).toBe('function')
     expect(typeof journey).toBe('function')
     expect(typeof timeline).toBe('function')
+    expect(typeof classDiagram).toBe('function')
+    expect(typeof erDiagram).toBe('function')
   })
 
   // Every v1.1 config field must be nameable from the package entry, not just
@@ -434,14 +452,55 @@ describe('public exports', () => {
       sections: [timelineSection],
     }
 
+    const relType: ClassRelationType = 'inheritance'
+    const classNode: ClassNode = {
+      id: 'Animal',
+      annotation: '<<abstract>>',
+      attributes: ['+int age'],
+      methods: ['+eat() void'],
+      highlight: 'green',
+    }
+    const relation: ClassRelation = {
+      from: 'Duck',
+      to: 'Animal',
+      type: relType,
+      label: 'is a',
+      fromCardinality: '1',
+      toCardinality: '1',
+    }
+    const classCfg: ClassConfig = {
+      type: 'class',
+      classes: [classNode, { id: 'Duck' }],
+      relations: [relation],
+      direction: 'LR',
+    }
+
+    const erKey: ErKey = 'PK'
+    const erAttr: ErAttribute = { type: 'string', name: 'id', keys: [erKey], comment: 'row id' }
+    const cardinality: ErCardinality = 'zero-or-more'
+    const entity: ErEntity = { id: 'CUSTOMER', label: 'Customer', attributes: [erAttr], highlight: 'red' }
+    const relationship: ErRelationship = {
+      from: 'CUSTOMER',
+      to: 'ORDER',
+      fromCardinality: 'exactly-one',
+      toCardinality: cardinality,
+      identifying: false,
+      label: 'places',
+    }
+    const erCfg: ErConfig = {
+      type: 'er',
+      entities: [entity, { id: 'ORDER' }],
+      relationships: [relationship],
+    }
+
     const theme: ThemeTokens = { ...lightTheme }
     const options: DiagramOptions = { theme, trigger: 'manual', animate: false }
-    const configs: DiagramConfig[] = [seqCfg, flowCfg, stateCfg, journeyCfg, timelineCfg]
+    const configs: DiagramConfig[] = [seqCfg, flowCfg, stateCfg, journeyCfg, timelineCfg, classCfg, erCfg]
 
     const controllers: DiagramController[] = configs.map((cfg) =>
       render(document.createElement('div'), cfg, options),
     )
-    expect(controllers).toHaveLength(5)
+    expect(controllers).toHaveLength(7)
     controllers.forEach((c) => c.destroy())
   })
 

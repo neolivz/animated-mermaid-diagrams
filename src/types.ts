@@ -236,9 +236,98 @@ export interface TimelineConfig {
   options?: DiagramOptions
 }
 
+// ---- class ----
+
+export type ClassRelationType =
+  | 'inheritance'
+  | 'composition'
+  | 'aggregation'
+  | 'association'
+  | 'dependency'
+  | 'realization'
+  | 'link'
+
+export interface ClassNode {
+  id: string
+  /** display name; defaults to id. Generics parse as e.g. "List<T>" */
+  label?: string
+  /** e.g. "<<interface>>" — shown as a small line under the title */
+  annotation?: string
+  /** member strings rendered verbatim, e.g. "+name: String" */
+  attributes?: string[]
+  /** member strings rendered verbatim, e.g. "+save() bool" */
+  methods?: string[]
+  highlight?: Highlight
+}
+
+/** The marker (triangle/diamond/arrowhead) always renders at the `to` end;
+ *  the parser normalizes Mermaid's arrow orientation into this form. */
+export interface ClassRelation {
+  from: string
+  to: string
+  /** default 'association'. dependency/realization render dashed */
+  type?: ClassRelationType
+  label?: string
+  fromCardinality?: string
+  toCardinality?: string
+  /** dashed line for the plain 'link' type (Mermaid `..`) */
+  dashed?: boolean
+}
+
+export interface ClassConfig {
+  type?: 'class'
+  classes: ClassNode[]
+  relations: ClassRelation[]
+  direction?: FlowDirection
+  options?: DiagramOptions
+}
+
+// ---- er ----
+
+export type ErKey = 'PK' | 'FK' | 'UK'
+
+export interface ErAttribute {
+  type: string
+  name: string
+  keys?: ErKey[]
+  /** parsed from Mermaid but not rendered in v1 */
+  comment?: string
+}
+
+export interface ErEntity {
+  id: string
+  /** display name; defaults to id */
+  label?: string
+  attributes?: ErAttribute[]
+  highlight?: Highlight
+}
+
+export type ErCardinality = 'zero-or-one' | 'exactly-one' | 'zero-or-more' | 'one-or-more'
+
+export interface ErRelationship {
+  from: string
+  to: string
+  /** crow's-foot marker at the `from` end; default 'exactly-one' */
+  fromCardinality?: ErCardinality
+  /** crow's-foot marker at the `to` end; default 'exactly-one' */
+  toCardinality?: ErCardinality
+  /** identifying (solid, default) vs non-identifying (dashed) */
+  identifying?: boolean
+  label?: string
+}
+
+export interface ErConfig {
+  type?: 'er'
+  entities: ErEntity[]
+  relationships: ErRelationship[]
+  options?: DiagramOptions
+}
+
 export type DiagramConfig =
   | SequenceConfig
   | FlowchartConfig
   | StateConfig
   | JourneyConfig
   | TimelineConfig
+  | ClassConfig
+  | ErConfig

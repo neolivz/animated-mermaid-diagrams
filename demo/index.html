@@ -271,13 +271,15 @@
       <a href="#fig-08"><span class="n">08</span> Auto-init (data)</a>
       <a href="#fig-09"><span class="n">09</span> User journey</a>
       <a href="#fig-10"><span class="n">10</span> Timeline</a>
+      <a href="#fig-11"><span class="n">11</span> Class diagram</a>
+      <a href="#fig-12"><span class="n">12</span> ER diagram</a>
     </nav>
 
     <main>
       <header>
-        <div class="eyebrow"><b>animated-mermaid-diagrams</b> · rev 0.3.0</div>
+        <div class="eyebrow"><b>animated-mermaid-diagrams</b> · rev 0.4.0</div>
         <h1>Diagrams that draw themselves.</h1>
-        <p class="lede">Step-by-step animation for Mermaid <strong>sequence</strong>, <strong>flowchart</strong>, <strong>state</strong>, <strong>journey</strong>, and <strong>timeline</strong> diagrams. The same layout engine as Mermaid, one script tag, ~33&nbsp;KB.</p>
+        <p class="lede">Step-by-step animation for Mermaid <strong>sequence</strong>, <strong>flowchart</strong>, <strong>state</strong>, <strong>journey</strong>, <strong>timeline</strong>, <strong>class</strong>, and <strong>ER</strong> diagrams. The same layout engine as Mermaid, one script tag, ~37&nbsp;KB.</p>
         <span class="install">npm install animated-mermaid-diagrams</span>
       </header>
 
@@ -450,9 +452,29 @@ flowchart LR
         <details class="src"><summary>source</summary><pre><code id="src-10"></code></pre></details>
       </section>
 
+      <section id="fig-11">
+        <div class="plate-head">
+          <span class="fig">FIG. 11 — CLASS DIAGRAM</span>
+          <h2>Hierarchies, compartment by compartment</h2>
+        </div>
+        <p class="how">New in 0.4.0. Parents appear first, then each inheritance arrow draws down to its subclass — UML markers included: hollow triangles, diamonds, dashed dependencies.</p>
+        <div class="panel"><div id="class"></div></div>
+        <details class="src"><summary>source</summary><pre><code id="src-11"></code></pre></details>
+      </section>
+
+      <section id="fig-12">
+        <div class="plate-head">
+          <span class="fig">FIG. 12 — ENTITY RELATIONSHIP</span>
+          <h2>Crow's feet, one relationship at a time</h2>
+        </div>
+        <p class="how">New in 0.4.0. Entities pop in with typed attribute rows and PK/FK badges; relationships draw with crow's-foot cardinality at both ends, dashed when non-identifying.</p>
+        <div class="panel"><div id="er"></div></div>
+        <details class="src"><summary>source</summary><pre><code id="src-12"></code></pre></details>
+      </section>
+
       <footer>
         <div><dt>Project</dt><dd>animated-mermaid-diagrams</dd></div>
-        <div><dt>Revision</dt><dd>0.3.0</dd></div>
+        <div><dt>Revision</dt><dd>0.4.0</dd></div>
         <div><dt>Layout engine</dt><dd>dagre — same as Mermaid</dd></div>
         <div><dt>License</dt><dd>MIT</dd></div>
         <div><dt>Sheet</dt><dd>1 of 1</dd></div>
@@ -564,6 +586,43 @@ flowchart LR
         2010 : Pinterest
         2011 : Snapchat : Twitch
       `,
+      class: `
+      classDiagram
+        class Animal {
+          <<abstract>>
+          +String name
+          +int age
+          +isMammal() bool
+        }
+        class Duck {
+          +String beakColor
+          +swim()
+          +quack()
+        }
+        class Fish {
+          -int sizeInFeet
+          -canEat() bool
+        }
+        Animal <|-- Duck
+        Animal <|-- Fish
+        Duck "1" --> "many" Feather : has
+        class Feather
+      `,
+      er: `
+      erDiagram
+        CUSTOMER ||--o{ ORDER : places
+        ORDER ||--|{ LINE_ITEM : contains
+        CUSTOMER }|..|{ ADDRESS : uses
+        CUSTOMER {
+          string name
+          string custNumber PK
+          string sector
+        }
+        ORDER {
+          int orderNumber PK
+          string deliveryAddress FK
+        }
+      `,
     }
 
     // FIG. 00 — hero, with a live step counter driven by the real callbacks
@@ -626,6 +685,12 @@ flowchart LR
     // FIG. 10
     render(document.getElementById('timeline'), CHARTS.timeline)
 
+    // FIG. 11
+    render(document.getElementById('class'), CHARTS.class)
+
+    // FIG. 12
+    render(document.getElementById('er'), CHARTS.er)
+
     // FIG. 07
     // Source blocks show the complete, runnable call for what was rendered
     const dedent = (t) => {
@@ -648,6 +713,8 @@ flowchart LR
       '06': renderCall('state_composite'),
       '09': renderCall('journey'),
       '10': renderCall('timeline'),
+      '11': renderCall('class'),
+      '12': renderCall('er'),
     }
     for (const [num, text] of Object.entries(SRC)) {
       const el = document.getElementById('src-' + num)

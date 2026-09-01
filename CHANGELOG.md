@@ -4,6 +4,27 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.0]
+
+### Added
+
+- Class diagrams (`classDiagram` Mermaid syntax or a `ClassConfig`): compartment boxes with
+  attributes/methods/annotations, UML end markers (hollow triangle, filled/hollow diamond,
+  arrowhead), quoted cardinalities, generics, `direction`, dagre layout ranking parents above
+  children. New exports: `classDiagram`, `parseClass`, and the
+  `ClassConfig`/`ClassNode`/`ClassRelation`/`ClassRelationType` types.
+- ER diagrams (`erDiagram` Mermaid syntax or an `ErConfig`): entity tables with typed attribute
+  rows and PK/FK/UK badges, crow's-foot cardinality markers at both ends, identifying (solid) vs
+  non-identifying (dashed) relationships, entity aliases. New exports: `erDiagram`, `parseEr`, and
+  the `ErConfig`/`ErEntity`/`ErAttribute`/`ErRelationship`/`ErCardinality`/`ErKey` types.
+- Both new types support `highlight`, all trigger modes, and keyboard/click step-through via the
+  shared controller.
+
+### Changed
+
+- CI browser-bundle size budget raised to 40 KB gzipped (bundle is now ~37 KB with seven diagram
+  types).
+
 ## [0.3.0]
 
 ### Added
