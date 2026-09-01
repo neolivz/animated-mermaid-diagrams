@@ -4,6 +4,14 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.6.1]
+
+### Fixed
+
+- Journey connectors no longer draw from face center to face center (which painted over the
+  previous task's smiley); they now trim flush to each circle's outer stroke edge, with extra
+  clearance for highlight rings.
+
 ## [0.6.0]
 
 The roadmap's final milestone: all thirteen core Mermaid diagram types are now supported.

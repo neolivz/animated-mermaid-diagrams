@@ -95,6 +95,24 @@ describe('buildJourneySvg', () => {
     // 3 tasks → 2 connectors; plus 1 baseline axis line
     expect(svg.querySelectorAll('line').length).toBeGreaterThanOrEqual(3)
   })
+
+  it('trims connectors to the face borders instead of starting at the center', () => {
+    const { svg } = buildJourneySvg(CFG, opts)
+    const L = layoutJourney(CFG)
+    const connectors = [...svg.querySelectorAll('line')].filter(
+      (l) => l.getAttribute('stroke-width') === '2',
+    )
+    expect(connectors.length).toBeGreaterThanOrEqual(2)
+    for (const line of connectors) {
+      const x1 = Number(line.getAttribute('x1'))
+      const y1 = Number(line.getAttribute('y1'))
+      // No connector endpoint may sit at (i.e. inside) any face center.
+      for (const task of L.tasks) {
+        const d = Math.hypot(x1 - task.x, y1 - task.y)
+        expect(d).toBeGreaterThanOrEqual(14) // FACE_R
+      }
+    }
+  })
 })
 
 describe('buildJourneySvg hand-config hardening', () => {

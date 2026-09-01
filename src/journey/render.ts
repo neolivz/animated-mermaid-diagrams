@@ -209,20 +209,32 @@ export function buildJourneySvg(
   L.tasks.forEach((box, i) => {
     const group = stepGroups[i]
 
-    // Connector from the previous task, drawn before the face so the face
-    // circle covers the line ends.
+    // Connector from the previous task, trimmed back to each face's border
+    // (plus the highlight ring, when present) — a center-to-center line would
+    // paint over the previous smiley, which was appended in an earlier step.
     if (i > 0) {
       const prev = L.tasks[i - 1]
-      const line = el('line', {
-        x1: prev.x,
-        y1: prev.y,
-        x2: box.x,
-        y2: box.y,
-        stroke: t.line,
-        'stroke-width': 2,
-      })
-      root.appendChild(line)
-      group.push({ el: line, kind: 'draw' })
+      const dx = box.x - prev.x
+      const dy = box.y - prev.y
+      const dist = Math.hypot(dx, dy) || 1
+      const ux = dx / dist
+      const uy = dy / dist
+      // Trim to the OUTER edge of the circle stroke (r + strokeWidth/2), or
+      // of the highlight ring, so the line touches without a visible gap.
+      const trimFrom = FACE_R + (prev.task.highlight ? 5.75 : 0.75)
+      const trimTo = FACE_R + (box.task.highlight ? 5.75 : 0.75)
+      if (dist > trimFrom + trimTo) {
+        const line = el('line', {
+          x1: prev.x + ux * trimFrom,
+          y1: prev.y + uy * trimFrom,
+          x2: box.x - ux * trimTo,
+          y2: box.y - uy * trimTo,
+          stroke: t.line,
+          'stroke-width': 2,
+        })
+        root.appendChild(line)
+        group.push({ el: line, kind: 'draw' })
+      }
     }
 
     const faceGroup = el('g')
