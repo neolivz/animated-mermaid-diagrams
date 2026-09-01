@@ -42,7 +42,7 @@ test('journey and timeline figures play to completion on scroll', async ({ page 
 test('class and er figures play to completion on scroll', async ({ page }) => {
   await page.goto(DEMO)
   await page.locator('#fig-11').scrollIntoViewIfNeeded()
-  await expect.poll(() => visibleTexts(page, '#fig-11'), { timeout: 15000 }).toContain('Feather')
+  await expect.poll(() => visibleTexts(page, '#fig-11'), { timeout: 20000 }).toContain('Category')
   await page.locator('#fig-12').scrollIntoViewIfNeeded()
   await expect.poll(() => visibleTexts(page, '#fig-12'), { timeout: 15000 }).toContain('LINE_ITEM')
 })

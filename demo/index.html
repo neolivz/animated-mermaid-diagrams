@@ -457,7 +457,7 @@ flowchart LR
           <span class="fig">FIG. 11 — CLASS DIAGRAM</span>
           <h2>Hierarchies, compartment by compartment</h2>
         </div>
-        <p class="how">New in 0.4.0. Parents appear first, then each inheritance arrow draws down to its subclass — UML markers included: hollow triangles, diamonds, dashed dependencies.</p>
+        <p class="how">New in 0.4.0. Layer by layer: interfaces and generics, dashed realizations with hollow triangles, composition and aggregation diamonds with cardinalities, dependencies, and a self-relation.</p>
         <div class="panel"><div id="class"></div></div>
         <details class="src"><summary>source</summary><pre><code id="src-11"></code></pre></details>
       </section>
@@ -588,25 +588,48 @@ flowchart LR
       `,
       class: `
       classDiagram
-        class Animal {
-          <<abstract>>
+        class PaymentMethod {
+          <<interface>>
+          +authorize(amount) bool
+          +capture() Receipt
+        }
+        class Order {
+          -OrderStatus status
+          +total() Money
+          +submit() void
+        }
+        class OrderLine {
+          -int quantity
+          +subtotal() Money
+        }
+        class Product {
+          +String sku
+          +Money price
+        }
+        class Coupon {
+          +String code
+        }
+        class Customer {
           +String name
-          +int age
-          +isMammal() bool
         }
-        class Duck {
-          +String beakColor
-          +swim()
-          +quack()
+        class CreditCard {
+          -String last4
         }
-        class Fish {
-          -int sizeInFeet
-          -canEat() bool
+        class PayPal {
+          -String account
         }
-        Animal <|-- Duck
-        Animal <|-- Fish
-        Duck "1" --> "many" Feather : has
-        class Feather
+        class Category {
+          +String name
+        }
+        CreditCard ..|> PaymentMethod
+        PayPal ..|> PaymentMethod
+        Order "1" *-- "1..*" OrderLine : contains
+        Order o-- "0..*" Coupon : applies
+        Customer "1" --> "many" Order : places
+        Order ..> PaymentMethod : pays via
+        OrderLine --> Product : references
+        Product "many" --> "1" Category : in
+        Category --> Category : parent
       `,
       er: `
       erDiagram

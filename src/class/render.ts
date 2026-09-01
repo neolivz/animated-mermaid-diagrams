@@ -81,14 +81,20 @@ function relationMarker(
 }
 
 /** Cardinality label position: `dist` along the segment from the endpoint
- *  toward the path interior, offset perpendicular so it clears the line. */
-function cardinalityPos(end: Pt, inward: Pt, dist: number): Pt {
+ *  toward the path interior, then offset perpendicular far enough that the
+ *  label FULLY clears the line — half the label's width along the x
+ *  perpendicular component (vertical edges push sideways) and half its
+ *  height along the y component (horizontal edges push up/down). */
+function cardinalityPos(end: Pt, inward: Pt, dist: number, labelW: number): Pt {
   const dx = inward.x - end.x
   const dy = inward.y - end.y
   const d = Math.hypot(dx, dy) || 1
   const ux = dx / d
   const uy = dy / d
-  return { x: end.x + ux * dist - uy * 10, y: end.y + uy * dist + ux * 10 }
+  return {
+    x: end.x + ux * dist - uy * (labelW / 2 + 6),
+    y: end.y + uy * dist + ux * 14,
+  }
 }
 
 function classBox(cls: ClassNode, x: number, y: number, w: number, h: number, t: ThemeTokens): SVGGElement {
@@ -239,17 +245,26 @@ export function buildClassSvg(
     const fromEnd = reversed ? pts[pts.length - 1] : pts[0]
     const fromInward = (reversed ? pts[pts.length - 2] : pts[1]) ?? fromEnd
     const toInward = (reversed ? pts[1] : pts[pts.length - 2]) ?? tip
+    // Cardinality labels sit fully BESIDE the line (offset by their own
+    // size), on a background chip for the diagonal cases where the line
+    // still grazes the chip corner.
+    const cardinalityChip = (end: Pt, inward: Pt, dist: number, text: string): SVGGElement => {
+      const cw = estimateTextWidth(text, 11) + 8
+      const p = cardinalityPos(end, inward, dist, cw)
+      return el('g', {}, [
+        el('rect', { x: p.x - cw / 2, y: p.y - 8, width: cw, height: 16, rx: 3, fill: t.background }),
+        textEl(p.x, p.y, text, { color: t.textSecondary, size: 11 }),
+      ])
+    }
     if (rel.fromCardinality) {
-      const p = cardinalityPos(fromEnd, fromInward, 16)
-      const txt = textEl(p.x, p.y, rel.fromCardinality, { color: t.textSecondary, size: 11 })
-      labelLayer.appendChild(txt)
-      anim.push({ el: txt, kind: 'fade' })
+      const g = cardinalityChip(fromEnd, fromInward, 16, rel.fromCardinality)
+      labelLayer.appendChild(g)
+      anim.push({ el: g, kind: 'fade' })
     }
     if (rel.toCardinality) {
-      const p = cardinalityPos(tip, toInward, 16 + MARKER_LEN[type])
-      const txt = textEl(p.x, p.y, rel.toCardinality, { color: t.textSecondary, size: 11 })
-      labelLayer.appendChild(txt)
-      anim.push({ el: txt, kind: 'fade' })
+      const g = cardinalityChip(tip, toInward, 16 + MARKER_LEN[type], rel.toCardinality)
+      labelLayer.appendChild(g)
+      anim.push({ el: g, kind: 'fade' })
     }
     edgeTargets.push({ anim, targetLayer: placed.targetLayer, sourceLayer: placed.sourceLayer })
   }
