@@ -2,6 +2,10 @@
 
 Drop-in animated rendering for Mermaid diagrams. Accepts Mermaid syntax or a JS config, renders animated SVGs that auto-play on scroll. One dependency: [`@dagrejs/dagre`](https://github.com/dagrejs/dagre) — the same layout engine Mermaid uses.
 
+**[Live demo →](https://neolivz.github.io/animated-mermaid-diagrams/demo/)** — every diagram type animated, click-to-explore, keyboard control. [Side-by-side with Mermaid](https://neolivz.github.io/animated-mermaid-diagrams/demo/compare.html).
+
+![Auto-play sequence diagram, then click-to-explore flowchart](.github/demo.gif)
+
 ## Install
 
 ```bash
@@ -583,7 +587,7 @@ sequenceDiagram
 - One dependency: [`@dagrejs/dagre`](https://github.com/dagrejs/dagre) (the same layout engine Mermaid uses) — external in the ESM/CJS builds (resolved from `node_modules` like any other dependency), bundled into the browser-global build since it has no module resolution of its own
 - Tree-shakeable: `import { sequence }` only pulls in the sequence renderer (ESM build only — the CJS build's `require` interop defeats shaking, and dagre stays a separate resolved import in either case)
 - Browser global: `window.AnimatedMermaidDiagrams` via `dist/animated-mermaid-diagrams.umd.js` (an IIFE build for `<script>` tags; it does not register with AMD/CommonJS loaders)
-- Bundle size: ~30KB gzipped for the browser-global build (all diagram types, dagre included) — most of that is dagre itself; the ESM/CJS builds are far smaller since dagre stays an external import there
+- Bundle size: ~32KB gzipped for the browser-global build (enforced by a CI size budget) (all diagram types, dagre included) — most of that is dagre itself; the ESM/CJS builds are far smaller since dagre stays an external import there
 - Mermaid parser is a lightweight subset parser — does NOT depend on the mermaid package
 
 ## Accessibility
