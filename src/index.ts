@@ -17,7 +17,16 @@ import { parsePie } from './pie/parse'
 import { pie } from './pie/render'
 import { parseGantt } from './gantt/parse'
 import { gantt } from './gantt/render'
+import { parseMindmap } from './mindmap/parse'
+import { mindmap } from './mindmap/render'
+import { parseSankey } from './sankey/parse'
+import { sankey } from './sankey/render'
+import { parseGitGraph } from './gitgraph/parse'
+import { gitGraph } from './gitgraph/render'
+import { parseArchitecture } from './architecture/parse'
+import { architecture } from './architecture/render'
 import type {
+  ArchitectureConfig,
   ClassConfig,
   DiagramConfig,
   DiagramController,
@@ -25,8 +34,11 @@ import type {
   ErConfig,
   FlowchartConfig,
   GanttConfig,
+  GitGraphConfig,
   JourneyConfig,
+  MindmapConfig,
   PieConfig,
+  SankeyConfig,
   SequenceConfig,
   StateConfig,
   TimelineConfig,
@@ -47,6 +59,10 @@ export function render(
     if (kind === 'er') return erDiagram(container, { ...parseEr(input), options })
     if (kind === 'pie') return pie(container, { ...parsePie(input), options })
     if (kind === 'gantt') return gantt(container, { ...parseGantt(input), options })
+    if (kind === 'mindmap') return mindmap(container, { ...parseMindmap(input), options })
+    if (kind === 'sankey') return sankey(container, { ...parseSankey(input), options })
+    if (kind === 'gitgraph') return gitGraph(container, { ...parseGitGraph(input), options })
+    if (kind === 'architecture') return architecture(container, { ...parseArchitecture(input), options })
     return stateDiagram(container, { ...parseState(input), options })
   }
   const merged = { ...input, options: { ...input.options, ...options } }
@@ -93,6 +109,30 @@ export function render(
     const cfg = merged as PieConfig
     if (!Array.isArray(cfg.slices)) throw new Error('Pie config requires a "slices" array')
     return pie(container, cfg)
+  }
+  if (merged.type === 'mindmap' || (merged.type === undefined && 'root' in merged)) {
+    const cfg = merged as MindmapConfig
+    if (typeof cfg.root !== 'object' || cfg.root === null || typeof cfg.root.text !== 'string') {
+      throw new Error('Mindmap config requires a "root" node with a "text" field')
+    }
+    return mindmap(container, cfg)
+  }
+  if (merged.type === 'sankey' || (merged.type === undefined && 'links' in merged)) {
+    const cfg = merged as SankeyConfig
+    if (!Array.isArray(cfg.links)) throw new Error('Sankey config requires a "links" array')
+    return sankey(container, cfg)
+  }
+  if (merged.type === 'gitgraph' || (merged.type === undefined && 'operations' in merged)) {
+    const cfg = merged as GitGraphConfig
+    if (!Array.isArray(cfg.operations)) throw new Error('GitGraph config requires an "operations" array')
+    return gitGraph(container, cfg)
+  }
+  if (merged.type === 'architecture' || (merged.type === undefined && 'services' in merged)) {
+    const cfg = merged as ArchitectureConfig
+    if (!Array.isArray(cfg.services) || !Array.isArray(cfg.edges)) {
+      throw new Error('Architecture config requires "services" and "edges" arrays')
+    }
+    return architecture(container, cfg)
   }
   const sections = 'sections' in merged && Array.isArray(merged.sections) ? merged.sections : undefined
   // First-section semantics, matching the priority comment above: a config
@@ -256,6 +296,10 @@ export { classDiagram } from './class/render'
 export { erDiagram } from './er/render'
 export { pie } from './pie/render'
 export { gantt } from './gantt/render'
+export { mindmap } from './mindmap/render'
+export { sankey } from './sankey/render'
+export { gitGraph } from './gitgraph/render'
+export { architecture } from './architecture/render'
 export { parseSequence } from './sequence/parse'
 export { parseFlowchart } from './flowchart/parse'
 export { parseState } from './state/parse'
@@ -265,6 +309,10 @@ export { parseClass } from './class/parse'
 export { parseEr } from './er/parse'
 export { parsePie } from './pie/parse'
 export { parseGantt } from './gantt/parse'
+export { parseMindmap } from './mindmap/parse'
+export { parseSankey } from './sankey/parse'
+export { parseGitGraph } from './gitgraph/parse'
+export { parseArchitecture } from './architecture/parse'
 export { detectType } from './detect'
 export type { DetectedType } from './detect'
 export { lightTheme, darkTheme } from './theme'
@@ -312,4 +360,17 @@ export type {
   GanttSection,
   GanttTask,
   GanttStatus,
+  MindmapConfig,
+  MindmapNode,
+  MindmapShape,
+  SankeyConfig,
+  SankeyLink,
+  GitGraphConfig,
+  GitOperation,
+  ArchitectureConfig,
+  ArchGroup,
+  ArchService,
+  ArchEdge,
+  ArchIcon,
+  ArchSide,
 } from './types'

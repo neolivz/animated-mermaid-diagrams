@@ -2,97 +2,111 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>flowchart comparison</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>animated-mermaid-diagrams — side by side with Mermaid</title>
   <style>
     body { font-family: system-ui, sans-serif; margin: 0; padding: 24px; background: #0f172a; color: #e2e8f0; }
-    .row { display: flex; gap: 24px; align-items: flex-start; }
-    .col { flex: 1; border: 1px solid #334155; border-radius: 8px; padding: 16px; }
-    h2 { margin: 0 0 12px; font-size: 16px; color: #94a3b8; }
+    header { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+    h1 { font-size: 17px; margin: 0; font-weight: 600; }
+    h1 a { color: #818cf8; text-decoration: none; }
+    select, button {
+      background: #1e293b; color: #e2e8f0; border: 1px solid #334155;
+      border-radius: 7px; padding: 7px 12px; font-size: 13px; cursor: pointer;
+    }
+    .row { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; }
+    .col { flex: 1; min-width: 420px; border: 1px solid #334155; border-radius: 8px; padding: 16px; overflow-x: auto; }
+    h2 { margin: 0 0 12px; font-size: 14px; color: #94a3b8; font-weight: 600; }
     .mermaid { background: transparent; }
+    .err { color: #f87171; font-size: 13px; }
   </style>
 </head>
 <body>
+  <header>
+    <h1><a href="index.html">← demo</a> · Side by side with real Mermaid</h1>
+    <label for="chart">Chart:</label>
+    <select id="chart"></select>
+    <button id="replay">replay animation</button>
+  </header>
   <div class="row">
     <div class="col">
-      <h2>Real Mermaid (static)</h2>
-      <pre class="mermaid">
-flowchart TD
-  S([Push to main]) --> B[Build]
-  B --> T{Tests pass?}
-  T -->|no| N[Notify author]
-  N -.-> B
-  T -->|yes| P[Package artifact]
-  P --> D{Deploy target?}
-  D -->|staging| G[Deploy to staging]
-  D -->|production| A{Approved?}
-  A -->|no| W[Wait for approval]
-  W -.-> A
-  A -->|yes| R[Deploy to production]
-  G --> V[Smoke tests]
-  V --> C((Done))
-  R --> C
-      </pre>
+      <h2>Mermaid 11 (static render)</h2>
+      <div id="mm"></div>
     </div>
     <div class="col">
-      <h2>animated-mermaid-diagrams (animate: false)</h2>
+      <h2>animated-mermaid-diagrams (animated)</h2>
       <div id="ours"></div>
     </div>
   </div>
 
-  <div class="col" style="margin-top: 24px;">
-    <h2>Animated (press play) <button id="play">play</button> <button id="pause">pause</button> <button id="resume">resume</button> <button id="reset">reset</button></h2>
-    <div id="animated" style="max-width: 900px; margin: 0 auto;"></div>
-  </div>
-
   <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
   <script src="../dist/animated-mermaid-diagrams.umd.js"></script>
+  <script src="charts.js"></script>
   <script>
-    mermaid.initialize({ startOnLoad: true, theme: 'dark' })
-    AnimatedMermaidDiagrams.render(document.getElementById('ours'), `
-flowchart TD
-  S([Push to main]) --> B[Build]
-  B --> T{Tests pass?}
-  T -->|no| N[Notify author]
-  N -.-> B
-  T -->|yes| P[Package artifact]
-  P --> D{Deploy target?}
-  D -->|staging| G[Deploy to staging]
-  D -->|production| A{Approved?}
-  A -->|no| W[Wait for approval]
-  W -.-> A
-  A -->|yes| R[Deploy to production]
-  G --> V[Smoke tests]
-  V --> C((Done))
-  R --> C
-    `, { animate: false, theme: 'dark' })
+    const LABELS = {
+      seq_tiers: 'Sequence — multi-tier request',
+      seq: 'Sequence — frames & activations',
+      flow: 'Flowchart',
+      flow_click: 'Flowchart — branching',
+      seq_click: 'Sequence — short',
+      state_composite: 'State — composite',
+      journey: 'User journey',
+      timeline: 'Timeline',
+      class: 'Class diagram',
+      er: 'ER diagram',
+      pie: 'Pie chart',
+      gantt: 'Gantt chart',
+      mindmap: 'Mindmap',
+      sankey: 'Sankey',
+      gitgraph: 'Git graph',
+      architecture: 'Architecture',
+    }
+    const select = document.getElementById('chart')
+    for (const key of Object.keys(window.AMD_CHARTS)) {
+      const opt = document.createElement('option')
+      opt.value = key
+      opt.textContent = LABELS[key] ?? key
+      select.appendChild(opt)
+    }
+    const params = new URLSearchParams(location.search)
+    if (params.get('chart') && window.AMD_CHARTS[params.get('chart')]) {
+      select.value = params.get('chart')
+    }
 
-    const CHART = `
-flowchart TD
-  S([Push to main]) --> B[Build]
-  B --> T{Tests pass?}
-  T -->|no| N[Notify author]
-  N -.-> B
-  T -->|yes| P[Package artifact]
-  P --> D{Deploy target?}
-  D -->|staging| G[Deploy to staging]
-  D -->|production| A{Approved?}
-  A -->|no| W[Wait for approval]
-  W -.-> A
-  A -->|yes| R[Deploy to production]
-  G --> V[Smoke tests]
-  V --> C((Done))
-  R --> C
-    `
-    const ctrl = AnimatedMermaidDiagrams.render(document.getElementById('animated'), CHART, {
-      theme: 'dark',
-      trigger: 'manual',
-      stepDuration: 550,
-      stepDelay: 150,
-    })
-    document.getElementById('play').onclick = () => ctrl.play()
-    document.getElementById('pause').onclick = () => ctrl.pause()
-    document.getElementById('resume').onclick = () => ctrl.resume()
-    document.getElementById('reset').onclick = () => ctrl.reset()
+    mermaid.initialize({ startOnLoad: false, theme: 'dark' })
+
+    let ctrl = null
+    let renderSeq = 0
+    async function show(key) {
+      const text = window.AMD_CHARTS[key]
+      const seq = ++renderSeq
+      history.replaceState(null, '', '?chart=' + key)
+
+      // Left: real Mermaid.
+      const mm = document.getElementById('mm')
+      mm.innerHTML = ''
+      try {
+        const { svg } = await mermaid.render('mm-svg-' + seq, text.trim())
+        if (seq !== renderSeq) return
+        mm.innerHTML = svg
+      } catch (err) {
+        if (seq !== renderSeq) return
+        mm.innerHTML = '<p class="err">Mermaid could not render this input: ' + String(err && err.message || err) + '</p>'
+      }
+
+      // Right: ours, animating immediately.
+      if (ctrl) ctrl.destroy()
+      const ours = document.getElementById('ours')
+      ours.innerHTML = ''
+      ctrl = AnimatedMermaidDiagrams.render(ours, text, {
+        theme: 'dark',
+        trigger: 'immediate',
+        keyboard: true,
+      })
+    }
+
+    select.onchange = () => show(select.value)
+    document.getElementById('replay').onclick = () => { if (ctrl) ctrl.play() }
+    show(select.value)
   </script>
 </body>
 </html>

@@ -14,7 +14,7 @@ npm install animated-mermaid-diagrams
 
 ## Vision
 
-Animate every Mermaid diagram type. Currently shipping (`0.5.0`): sequence, flowchart, state, user journey, timeline, class, ER, pie, and Gantt diagrams. Subsequent releases add the remaining types.
+Animate every Mermaid diagram type. `0.6.0` ships all thirteen core types: sequence, flowchart, state, user journey, timeline, class, ER, pie, Gantt, mindmap, sankey, git graph, and architecture.
 
 ### Roadmap
 
@@ -26,7 +26,7 @@ Milestones, in order (versions are indicative — features ship as they're ready
 | v1.1 | Journey, Timeline | shipped in 0.3.0 |
 | v1.2 | Class Diagram, ER Diagram | shipped in 0.4.0 |
 | v1.3 | Pie, Gantt | shipped in 0.5.0 |
-| v2.0 | Mindmap, Sankey, Git Graph, Architecture | planned |
+| v2.0 | Mindmap, Sankey, Git Graph, Architecture | shipped in 0.6.0 |
 
 ## Input: Mermaid syntax or JS config
 
@@ -684,6 +684,84 @@ Tasks whose start can't be resolved (unknown `after`, no prior task) are skipped
 - Title and the date axis (adaptive tick density: daily ≤ 14 days, weekly ≤ 90, else ~monthly) appear first
 - Bars draw left-to-right in document order, one per step; milestones pop as diamonds; section bands appear with their first task
 
+### Mindmap
+
+```js
+render(container, `
+  mindmap
+    root((diagrams))
+      Structure
+        Flowchart
+        Class
+      Story
+        Journey
+`)
+```
+
+Or via config: `mindmap(container, { root: { text: 'diagrams', shape: 'circle', children: [...] } })` — each `MindmapNode` is `{ text, shape?, highlight?, children? }`.
+
+- Shapes: `((circle))`, `(rounded)`, `[square]`, `{{hexagon}}`, `)cloud(`, `))bang((`, or plain text (rendered on an underline)
+- Layout: two-sided tree — depth-1 branches alternate right/left of the root in document order, each branch keeping its own palette color
+- Animation: the root pops first, then one step per node in document (depth-first) order, its connector drawing in ahead of it
+- `::icon(...)` lines parse but are ignored
+
+### Sankey
+
+```js
+render(container, `
+  sankey-beta
+    Solar,Grid,40
+    Wind,Grid,35
+    Grid,Homes,55
+`)
+```
+
+Or via config: `sankey(container, { links: [{ source, target, value, highlight? }] })`.
+
+- CSV rows `source,target,value`, double-quoted fields may contain commas
+- Nodes are created on first mention, ranked by longest path, and sized to their throughput; links that would create a cycle are dropped
+- Animation: all nodes appear first, then one ribbon per link fades in with thickness proportional to its value
+
+### Git Graph
+
+```js
+render(container, `
+  gitGraph
+    commit id: "init"
+    branch develop
+    checkout develop
+    commit
+    checkout main
+    merge develop tag: "v1.0"
+`)
+```
+
+Or via config: `gitGraph(container, { operations: [{ op: 'commit' | 'branch' | 'checkout' | 'merge', name?, id?, tag?, highlight? }] })` — the renderer replays the operation list exactly like the parser does.
+
+- `commit` supports `id: "..."`, `tag: "..."`, and `type: HIGHLIGHT` (renders as `highlight`); `switch` is an alias for `checkout`; `branch` also checks out the new branch, matching Mermaid
+- Branches get one lane each in creation order (`main` first), colored from the palette; merges render as ring dots with a curve from the merged branch
+- Animation: lane labels appear first, then one step per commit/merge in order; `branch`/`checkout` are bookkeeping and draw nothing
+- Lenient: checkout/merge of an unknown branch is ignored; cherry-pick is unsupported
+
+### Architecture
+
+```js
+render(container, `
+  architecture-beta
+    group api(cloud)[API]
+    service web(server)[Web Server] in api
+    service db(database)[Database] in api
+    web:R -- L:db
+`)
+```
+
+Or via config: `architecture(container, { groups?, services, edges })` with `ArchService { id, label?, icon?, group?, highlight? }` and `ArchEdge { from, to, fromSide?, toSide? }` (sides `'L' | 'R' | 'T' | 'B'`, defaulting to the nearest sides).
+
+- Icons: `cloud`, `database`, `disk`, `server`, `internet` (drawn as minimal glyphs); unknown icons render a generic card
+- Groups lay out left-to-right (wrapping after three); services grid inside their group, ungrouped services in a trailing block
+- Animation: group boxes appear, then one step per service card, then one step per connection
+- `junction` and nested groups (`group ... in ...`) are unsupported and ignored
+
 ---
 
 ## Shared Options
@@ -884,6 +962,25 @@ The parser aims for compatibility with Mermaid's syntax as documented at mermaid
 - Tasks without a start continue from the previous task's end
 - `dateFormat` is parsed but only `YYYY-MM-DD` is supported; `axisFormat`, `excludes`, `todayMarker`, `tickInterval` are ignored
 
+### Mindmap syntax
+
+- Indentation-based hierarchy under a single root; all shape wrappers (`(( ))`, `( )`, `[ ]`, `{{ }}`, `) (`, `)) ((`)
+- `::icon(...)` lines are ignored
+
+### Sankey syntax
+
+- `sankey-beta` (or `sankey`) header, CSV rows `source,target,value` with quoted-field support
+
+### Git graph syntax
+
+- `gitGraph` header (an `LR:`/`TB:` suffix parses but layout is always left-to-right)
+- `commit [id: "..."] [tag: "..."] [type: HIGHLIGHT]`, `branch name`, `checkout`/`switch name`, `merge name [tag: "..."]`
+
+### Architecture syntax
+
+- `architecture-beta` (or `architecture`) header
+- `group id(icon)[Title]`, `service id(icon)[Label] [in group]`, edges `a:R -- L:b` / `a -- b` / `a --> b`
+
 ### Simplifications
 
 A few constructs render with intentionally simplified semantics rather than full fidelity to Mermaid's behavior:
@@ -898,7 +995,11 @@ A few constructs render with intentionally simplified semantics rather than full
 - `par`/`and` sections animate in document order, not concurrently
 - Class diagrams: `namespace` blocks, notes, and click/link callbacks are ignored; association/dependency arrows use the library's filled arrowhead rather than UML's open arrow
 - ER diagrams: attribute comments parse into the config but don't render; a bare entity name on its own line is ignored — declare entities via a block or a relationship
-- Pie charts: slice colors are a fixed categorical palette, not theme tokens
+- Pie charts: slice colors are a fixed categorical palette, not theme tokens (mindmap branches, sankey nodes, and git-graph lanes use the same palette)
+- Mindmap: layout is a two-sided tree rather than Mermaid's radial layout; the cloud shape renders as a stadium
+- Sankey: links that would create a cycle are dropped; node order within a column is first-mention order (no crossing minimization)
+- Git graph: always left-to-right; `cherry-pick` and custom branch ordering are unsupported
+- Architecture: no nested groups or junctions; edges are straight lines between side anchors
 - Gantt charts: no today-marker or weekend exclusion; `dateFormat` other than `YYYY-MM-DD` is unsupported; a JS config with sections of tasks and no `type` is inferred gantt only when the first task carries timing fields (`start`/`after`/`durationDays`/`end`/`milestone`) — set `type: 'gantt'` to be explicit
 - Gantt dates use JavaScript's calendar rollover: an invalid date like `2024-02-30` becomes `2024-03-01` rather than an error; tasks depending on a fractional-duration task (`2.5d`) start at the next whole day
 
@@ -1010,7 +1111,7 @@ sequenceDiagram
 - One dependency: [`@dagrejs/dagre`](https://github.com/dagrejs/dagre) (the same layout engine Mermaid uses) — external in the ESM/CJS builds (resolved from `node_modules` like any other dependency), bundled into the browser-global build since it has no module resolution of its own
 - Tree-shakeable: `import { sequence }` only pulls in the sequence renderer (ESM build only — the CJS build's `require` interop defeats shaking, and dagre stays a separate resolved import in either case)
 - Browser global: `window.AnimatedMermaidDiagrams` via `dist/animated-mermaid-diagrams.umd.js` (an IIFE build for `<script>` tags; it does not register with AMD/CommonJS loaders)
-- Bundle size: ~40KB gzipped for the browser-global build (enforced by a CI size budget) (all diagram types, dagre included) — most of that is dagre itself; the ESM/CJS builds are far smaller since dagre stays an external import there
+- Bundle size: ~45KB gzipped for the browser-global build (enforced by a CI size budget) (all diagram types, dagre included) — most of that is dagre itself; the ESM/CJS builds are far smaller since dagre stays an external import there
 - Mermaid parser is a lightweight subset parser — does NOT depend on the mermaid package
 
 ## Accessibility

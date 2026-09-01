@@ -1,6 +1,6 @@
 {
   "name": "animated-mermaid-diagrams",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Drop-in animated rendering for Mermaid diagrams. One dependency: @dagrejs/dagre (the same layout engine Mermaid uses).",
   "license": "MIT",
   "type": "module",

@@ -12,6 +12,10 @@ import {
   erDiagram,
   pie,
   gantt,
+  mindmap,
+  sankey,
+  gitGraph,
+  architecture,
   lightTheme,
   darkTheme,
 } from '../src/index'
@@ -61,6 +65,19 @@ import type {
   GanttSection,
   GanttTask,
   GanttStatus,
+  MindmapConfig,
+  MindmapNode,
+  MindmapShape,
+  SankeyConfig,
+  SankeyLink,
+  GitGraphConfig,
+  GitOperation,
+  ArchitectureConfig,
+  ArchGroup,
+  ArchService,
+  ArchEdge,
+  ArchIcon,
+  ArchSide,
   ThemeTokens,
 } from '../src/index'
 
@@ -68,6 +85,14 @@ describe('detectType', () => {
   it('detects pie and gantt headers', () => {
     expect(detectType('pie showData\ntitle X\n"A" : 1')).toBe('pie')
     expect(detectType('gantt\ntitle X')).toBe('gantt')
+  })
+
+  it('detects the v2.0 headers', () => {
+    expect(detectType('mindmap\n  Root')).toBe('mindmap')
+    expect(detectType('sankey-beta\nA,B,1')).toBe('sankey')
+    expect(detectType('sankey\nA,B,1')).toBe('sankey')
+    expect(detectType('gitGraph\ncommit')).toBe('gitgraph')
+    expect(detectType('architecture-beta\nservice a(server)[A]')).toBe('architecture')
   })
 
   it('detects all seven pre-0.5 types', () => {
@@ -86,7 +111,7 @@ describe('detectType', () => {
   })
 
   it('throws on unknown input', () => {
-    expect(() => detectType('mindmap\nroot')).toThrow(/Unsupported|Unknown/)
+    expect(() => detectType('quadrantChart\ntitle Q')).toThrow(/Unsupported|Unknown/)
   })
 })
 
@@ -101,6 +126,10 @@ describe('render with mermaid text', () => {
     ['erDiagram\nCUSTOMER ||--o{ ORDER : places', 'er'],
     ['pie\ntitle P\n"A" : 1\n"B" : 2', 'pie'],
     ['gantt\ndateFormat YYYY-MM-DD\nsection S\nT : 2024-01-01, 2d', 'gantt'],
+    ['mindmap\n  Root\n    A\n    B', 'mindmap'],
+    ['sankey-beta\nA,B,3\nB,C,2', 'sankey'],
+    ['gitGraph\ncommit\ncommit', 'gitgraph'],
+    ['architecture-beta\nservice a(server)[A]\nservice b(disk)[B]\na -- b', 'architecture'],
   ])('renders %s → svg', (text) => {
     const container = document.createElement('div')
     const ctrl = render(container, text, { trigger: 'manual' })
@@ -234,8 +263,8 @@ A->>B: Hi</pre>
   it('isolates failures: a bad diagram restores its pre and the rest render', () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
     document.body.innerHTML = `
-      <pre class="animated-mermaid-diagrams">mindmap
-root</pre>
+      <pre class="animated-mermaid-diagrams">quadrantChart
+title Q</pre>
       <pre class="animated-mermaid-diagrams">sequenceDiagram
 A->>B: Hi</pre>`
     const controllers = init()
@@ -286,8 +315,8 @@ A->>B: Hi</pre>`
   it('isolates failures for the data-attribute form too', () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
     document.body.innerHTML = `
-      <div data-animated-mermaid>mindmap
-root</div>
+      <div data-animated-mermaid>quadrantChart
+title Q</div>
       <div data-animated-mermaid>sequenceDiagram
 A->>B: Hi</div>`
     const controllers = init()
@@ -419,7 +448,7 @@ describe('render config validation', () => {
 })
 
 describe('public exports', () => {
-  it('exposes the nine direct renderers', () => {
+  it('exposes the thirteen direct renderers', () => {
     expect(typeof sequence).toBe('function')
     expect(typeof flowchart).toBe('function')
     expect(typeof stateDiagram).toBe('function')
@@ -429,6 +458,10 @@ describe('public exports', () => {
     expect(typeof erDiagram).toBe('function')
     expect(typeof pie).toBe('function')
     expect(typeof gantt).toBe('function')
+    expect(typeof mindmap).toBe('function')
+    expect(typeof sankey).toBe('function')
+    expect(typeof gitGraph).toBe('function')
+    expect(typeof architecture).toBe('function')
   })
 
   // Every v1.1 config field must be nameable from the package entry, not just
@@ -550,16 +583,45 @@ describe('public exports', () => {
     }
     const ganttCfg: GanttConfig = { type: 'gantt', title: 'G', sections: [ganttSection] }
 
+    const mindShape: MindmapShape = 'hexagon'
+    const mindNode: MindmapNode = { text: 'Child', shape: mindShape, highlight: 'green' }
+    const mindCfg: MindmapConfig = {
+      type: 'mindmap',
+      root: { text: 'Root', shape: 'circle', children: [mindNode] },
+    }
+
+    const link: SankeyLink = { source: 'A', target: 'B', value: 5, highlight: true }
+    const sankeyCfg: SankeyConfig = { type: 'sankey', links: [link, { source: 'B', target: 'C', value: 2 }] }
+
+    const gitOp: GitOperation = { op: 'commit', id: 'Alpha', tag: 'v1', highlight: 'red' }
+    const gitCfg: GitGraphConfig = {
+      type: 'gitgraph',
+      operations: [gitOp, { op: 'branch', name: 'dev' }, { op: 'checkout', name: 'dev' }, { op: 'commit' }],
+    }
+
+    const archIcon: ArchIcon = 'database'
+    const archSide: ArchSide = 'L'
+    const archGroup: ArchGroup = { id: 'g', title: 'Group', icon: 'cloud' }
+    const archService: ArchService = { id: 's1', label: 'DB', icon: archIcon, group: 'g', highlight: true }
+    const archEdge: ArchEdge = { from: 's1', to: 's2', fromSide: archSide, toSide: 'R' }
+    const archCfg: ArchitectureConfig = {
+      type: 'architecture',
+      groups: [archGroup],
+      services: [archService, { id: 's2' }],
+      edges: [archEdge],
+    }
+
     const theme: ThemeTokens = { ...lightTheme }
     const options: DiagramOptions = { theme, trigger: 'manual', animate: false }
     const configs: DiagramConfig[] = [
       seqCfg, flowCfg, stateCfg, journeyCfg, timelineCfg, classCfg, erCfg, pieCfg, ganttCfg,
+      mindCfg, sankeyCfg, gitCfg, archCfg,
     ]
 
     const controllers: DiagramController[] = configs.map((cfg) =>
       render(document.createElement('div'), cfg, options),
     )
-    expect(controllers).toHaveLength(9)
+    expect(controllers).toHaveLength(13)
     controllers.forEach((c) => c.destroy())
   })
 

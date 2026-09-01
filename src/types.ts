@@ -374,6 +374,95 @@ export interface GanttConfig {
   options?: DiagramOptions
 }
 
+// ---- mindmap ----
+
+export type MindmapShape = 'default' | 'circle' | 'rounded' | 'square' | 'hexagon' | 'cloud' | 'bang'
+
+export interface MindmapNode {
+  text: string
+  shape?: MindmapShape
+  highlight?: Highlight
+  children?: MindmapNode[]
+}
+
+export interface MindmapConfig {
+  type?: 'mindmap'
+  root: MindmapNode
+  options?: DiagramOptions
+}
+
+// ---- sankey ----
+
+export interface SankeyLink {
+  source: string
+  target: string
+  /** non-negative; non-finite or negative values are treated as 0 */
+  value: number
+  highlight?: Highlight
+}
+
+export interface SankeyConfig {
+  type?: 'sankey'
+  links: SankeyLink[]
+  options?: DiagramOptions
+}
+
+// ---- gitgraph ----
+
+export interface GitOperation {
+  op: 'commit' | 'branch' | 'checkout' | 'merge'
+  /** branch name, for branch/checkout/merge */
+  name?: string
+  /** commit label, for commit (auto-numbered when absent) */
+  id?: string
+  /** tag chip above the commit/merge dot */
+  tag?: string
+  highlight?: Highlight
+}
+
+export interface GitGraphConfig {
+  type?: 'gitgraph'
+  operations: GitOperation[]
+  options?: DiagramOptions
+}
+
+// ---- architecture ----
+
+export type ArchIcon = 'cloud' | 'database' | 'disk' | 'server' | 'internet'
+export type ArchSide = 'L' | 'R' | 'T' | 'B'
+
+export interface ArchGroup {
+  id: string
+  title?: string
+  icon?: ArchIcon
+}
+
+export interface ArchService {
+  id: string
+  /** display name; defaults to id */
+  label?: string
+  icon?: ArchIcon
+  /** id of the enclosing group */
+  group?: string
+  highlight?: Highlight
+}
+
+export interface ArchEdge {
+  from: string
+  to: string
+  /** anchor side on each card; defaults to the nearest sides */
+  fromSide?: ArchSide
+  toSide?: ArchSide
+}
+
+export interface ArchitectureConfig {
+  type?: 'architecture'
+  groups?: ArchGroup[]
+  services: ArchService[]
+  edges: ArchEdge[]
+  options?: DiagramOptions
+}
+
 export type DiagramConfig =
   | SequenceConfig
   | FlowchartConfig
@@ -384,3 +473,7 @@ export type DiagramConfig =
   | ErConfig
   | PieConfig
   | GanttConfig
+  | MindmapConfig
+  | SankeyConfig
+  | GitGraphConfig
+  | ArchitectureConfig

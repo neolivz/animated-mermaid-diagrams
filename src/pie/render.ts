@@ -4,18 +4,8 @@ import { highlightColor, resolveOptions } from '../theme'
 import { el, estimateTextWidth, svgRoot, textEl } from '../svg'
 import type { DiagramController, PieConfig, ResolvedOptions } from '../types'
 
-/** Categorical slice palette — mid-tone hues legible on both built-in themes.
- *  Cycles for charts with more than 8 slices. Not theme-customizable in v1. */
-export const PALETTE = [
-  '#6366f1', // indigo
-  '#10b981', // emerald
-  '#f59e0b', // amber
-  '#f43f5e', // rose
-  '#06b6d4', // cyan
-  '#8b5cf6', // violet
-  '#f97316', // orange
-  '#64748b', // slate
-]
+export { PALETTE } from '../palette'
+import { paletteColor } from '../palette'
 
 const R = 110
 const TITLE_H = 34
@@ -91,9 +81,7 @@ export function buildPieSvg(
 
   config.slices.forEach((slice, i) => {
     const group: AnimStep = []
-    // Shift each palette cycle by one so slice 8 doesn't repeat slice 0's
-    // color right next to it at 12 o'clock.
-    const color = PALETTE[(i + Math.floor(i / PALETTE.length)) % PALETTE.length]
+    const color = paletteColor(i)
     const arc = arcs[i]
     const stroke = highlightColor(slice.highlight, t)
 

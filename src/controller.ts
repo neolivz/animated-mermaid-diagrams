@@ -332,7 +332,12 @@ export function createDiagram(
             }
           }
         },
-        { threshold: 0.2 },
+        // The negative bottom rootMargin keeps a short diagram sitting just
+        // above the viewport's bottom edge from triggering while the viewer
+        // is still reading the content above it — it must climb 15% into
+        // view before playing. Tall diagrams are unaffected (threshold is
+        // relative to element size, rootMargin to the viewport).
+        { threshold: 0.2, rootMargin: '0px 0px -15% 0px' },
       )
       observer.observe(svg)
     }

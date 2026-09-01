@@ -8,6 +8,10 @@ export type DetectedType =
   | 'er'
   | 'pie'
   | 'gantt'
+  | 'mindmap'
+  | 'sankey'
+  | 'gitgraph'
+  | 'architecture'
 
 export function detectType(text: string): DetectedType {
   const first = text
@@ -24,5 +28,9 @@ export function detectType(text: string): DetectedType {
   if (/^erDiagram\b/.test(first)) return 'er'
   if (/^pie\b/.test(first)) return 'pie'
   if (/^gantt\b/.test(first)) return 'gantt'
+  if (/^mindmap\b/.test(first)) return 'mindmap'
+  if (/^sankey(-beta)?\b/.test(first)) return 'sankey'
+  if (/^gitGraph\b/.test(first)) return 'gitgraph'
+  if (/^architecture(-beta)?\b/.test(first)) return 'architecture'
   throw new Error(`Unsupported diagram type: "${first.split(/\s/)[0]}"`)
 }

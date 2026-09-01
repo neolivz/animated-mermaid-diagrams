@@ -4,6 +4,35 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.6.0]
+
+The roadmap's final milestone: all thirteen core Mermaid diagram types are now supported.
+
+### Added
+
+- Mindmaps (`mindmap`): indentation-parsed hierarchy, all Mermaid node shapes, two-sided tree
+  layout with per-branch palette colors, branch-by-branch reveal. New exports: `mindmap`,
+  `parseMindmap`, `MindmapConfig`/`MindmapNode`/`MindmapShape`.
+- Sankey diagrams (`sankey-beta`): CSV link parsing with quoted fields, longest-path ranking,
+  throughput-proportional node sizing, value-proportional ribbons fading in one per step.
+  New exports: `sankey`, `parseSankey`, `SankeyConfig`/`SankeyLink`.
+- Git graphs (`gitGraph`): commit/branch/checkout/merge replay onto colored branch lanes,
+  fork and merge curves, commit ids, tag chips, `type: HIGHLIGHT`. New exports: `gitGraph`,
+  `parseGitGraph`, `GitGraphConfig`/`GitOperation`.
+- Architecture diagrams (`architecture-beta`): groups with service grids, icon glyphs (cloud,
+  database, disk, server, internet), side-anchored connections (`a:R -- L:b`). New exports:
+  `architecture`, `parseArchitecture`, `ArchitectureConfig`/`ArchGroup`/`ArchService`/`ArchEdge`/
+  `ArchIcon`/`ArchSide`.
+- All four support `highlight`, every trigger mode, and keyboard/click step-through.
+
+### Changed
+
+- `mindmap`, `sankey`, `gitGraph`, and `architecture` headers are no longer "unsupported
+  diagram type" errors.
+- The categorical palette moved to a shared module used by pie, mindmap, sankey, and git graph.
+- CI browser-bundle size budget raised to 52 KB gzipped (bundle is now ~45 KB with all
+  thirteen types).
+
 ## [0.5.0]
 
 ### Added

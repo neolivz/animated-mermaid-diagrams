@@ -27,8 +27,24 @@ test('all figures render without console errors', async ({ page }) => {
     if (m.type() === 'error') errors.push(m.text())
   })
   await page.goto(DEMO)
-  await expect(page.locator('svg')).toHaveCount(15)
+  await expect(page.locator('svg')).toHaveCount(19)
   expect(errors).toEqual([])
+})
+
+test('mindmap and sankey figures play to completion on scroll', async ({ page }) => {
+  await page.goto(DEMO)
+  await page.locator('#fig-15').scrollIntoViewIfNeeded()
+  await expect.poll(() => visibleTexts(page, '#fig-15'), { timeout: 20000 }).toContain('Git graph')
+  await page.locator('#fig-16').scrollIntoViewIfNeeded()
+  await expect.poll(() => visibleTexts(page, '#fig-16'), { timeout: 15000 }).toContain('Industry')
+})
+
+test('git graph and architecture figures play to completion on scroll', async ({ page }) => {
+  await page.goto(DEMO)
+  await page.locator('#fig-17').scrollIntoViewIfNeeded()
+  await expect.poll(() => visibleTexts(page, '#fig-17'), { timeout: 20000 }).toContain('hotfix')
+  await page.locator('#fig-18').scrollIntoViewIfNeeded()
+  await expect.poll(() => visibleTexts(page, '#fig-18'), { timeout: 15000 }).toContain('Database')
 })
 
 test('pie and gantt figures play to completion on scroll', async ({ page }) => {
