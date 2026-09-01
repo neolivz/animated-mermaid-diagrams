@@ -14,17 +14,19 @@ npm install animated-mermaid-diagrams
 
 ## Vision
 
-Animate every Mermaid diagram type. V1 (currently `0.2.0`) ships sequence, flowchart, and state diagrams — the three types where step-by-step animation adds the most value. Subsequent releases add the remaining types.
+Animate every Mermaid diagram type. Currently shipping (`0.3.0`): sequence, flowchart, state, user journey, and timeline diagrams. Subsequent releases add the remaining types.
 
 ### Roadmap
 
-| Version | Diagram types |
-| ------- | ------------- |
-| v1.0 | Sequence, Flowchart, State Diagram |
-| v1.1 | Journey, Timeline |
-| v1.2 | Class Diagram, ER Diagram |
-| v1.3 | Pie, Gantt |
-| v2.0 | Mindmap, Sankey, Git Graph, Architecture |
+Milestones, in order (versions are indicative — features ship as they're ready in pre-1.0 minors):
+
+| Milestone | Diagram types | Status |
+| --------- | ------------- | ------ |
+| v1.0 | Sequence, Flowchart, State Diagram | shipped in 0.1.0–0.2.0 |
+| v1.1 | Journey, Timeline | shipped in 0.3.0 |
+| v1.2 | Class Diagram, ER Diagram | planned |
+| v1.3 | Pie, Gantt | planned |
+| v2.0 | Mindmap, Sankey, Git Graph, Architecture | planned |
 
 ## Input: Mermaid syntax or JS config
 
@@ -74,7 +76,7 @@ import { sequence, flowchart, stateDiagram } from 'animated-mermaid-diagrams'
 
 ---
 
-## Diagram Types (v1)
+## Diagram Types
 
 ### Sequence Diagram
 
@@ -306,6 +308,141 @@ stateDiagram(container, {
 - Initial state appears first, then transitions draw one-by-one following BFS from initial state, each target state appearing as the transition reaches it
 - Self-transitions (from === to): loop arrow above the state
 
+### User Journey
+
+#### Mermaid input
+
+```js
+render(container, `
+  journey
+    title My working day
+    section Go to work
+      Make tea: 5: Me
+      Go upstairs: 3: Me
+      Do work: 1: Me, Cat
+    section Go home
+      Go downstairs: 5: Me
+      Sit down: 5: Me
+`)
+```
+
+#### JS config input
+
+```js
+import { journey } from 'animated-mermaid-diagrams'
+
+journey(container, {
+  title: 'My working day',
+  sections: [
+    {
+      title: 'Go to work',
+      tasks: [
+        { name: 'Make tea', score: 5, actors: ['Me'] },
+        { name: 'Go upstairs', score: 3, actors: ['Me'] },
+        { name: 'Do work', score: 1, actors: ['Me', 'Cat'] },
+      ],
+    },
+    {
+      title: 'Go home',
+      tasks: [
+        { name: 'Go downstairs', score: 5, actors: ['Me'] },
+        { name: 'Sit down', score: 5, actors: ['Me'], highlight: true },
+      ],
+    },
+  ],
+})
+```
+
+#### Task schema
+
+| Field | Type | Required | Description |
+| ----- | ---- | -------- | ----------- |
+| `name` | `string` | yes | Task label, shown under the plot |
+| `score` | `number` | yes | Satisfaction 1–7 (Mermaid's scale); sets the vertical position and the face — ≥5 happy, 3–4 neutral, ≤2 sad. Out-of-range values clamp |
+| `actors` | `string[]` | no | Who performs the task, shown under the task name |
+| `highlight` | `boolean \| 'red' \| 'green'` | no | Draws an accent ring around the task's face |
+
+#### Config fields
+
+| Field | Type | Required | Description |
+| ----- | ---- | -------- | ----------- |
+| `title` | `string` | no | Diagram title, centered on top |
+| `sections` | `JourneySection[]` | yes | `{ title?, tasks }` groups, laid out left to right |
+
+#### Animation behaviour
+
+- Title and the score axis appear first
+- Tasks reveal one at a time, left to right: the connector line draws in, then the face pops, then the labels fade in
+- Each section's header band appears with its first task
+
+### Timeline
+
+#### Mermaid input
+
+```js
+render(container, `
+  timeline
+    title History of Social Media
+    section 2000s
+    2002 : LinkedIn
+    2004 : Facebook : Google
+    2005 : YouTube
+    section 2010s
+    2010 : Pinterest
+    2011 : Snapchat : Twitch
+`)
+```
+
+Continuation lines starting with `:` append more events to the previous period.
+
+#### JS config input
+
+```js
+import { timeline } from 'animated-mermaid-diagrams'
+
+timeline(container, {
+  title: 'History of Social Media',
+  sections: [
+    {
+      title: '2000s',
+      periods: [
+        { label: '2002', events: ['LinkedIn'] },
+        { label: '2004', events: ['Facebook', 'Google'] },
+        { label: '2005', events: ['YouTube'] },
+      ],
+    },
+    {
+      title: '2010s',
+      periods: [
+        { label: '2010', events: ['Pinterest'] },
+        { label: '2011', events: ['Snapchat', 'Twitch'], highlight: true },
+      ],
+    },
+  ],
+})
+```
+
+#### Period schema
+
+| Field | Type | Required | Description |
+| ----- | ---- | -------- | ----------- |
+| `label` | `string` | yes | Period label (a year, era, phase…), shown in the box on the spine |
+| `events` | `string[]` | yes | Events in the period, stacked below it (may be empty) |
+| `highlight` | `boolean \| 'red' \| 'green'` | no | Accent color for the period box border |
+
+#### Config fields
+
+| Field | Type | Required | Description |
+| ----- | ---- | -------- | ----------- |
+| `title` | `string` | no | Diagram title, centered on top |
+| `sections` | `TimelineSection[]` | yes | `{ title?, periods }` groups, laid out left to right |
+
+#### Animation behaviour
+
+- Title and the horizontal spine appear first
+- Periods reveal one at a time, left to right: the period box pops on the spine, then its events fade in below
+- Each section's header band appears with its first period
+
 ---
 
 ## Shared Options
@@ -438,7 +575,7 @@ Step indices for `goToStep(n)` / `onStepStart(n)`: for sequence diagrams, `n` ma
 
 ## Mermaid Syntax Compatibility
 
-The parser aims for compatibility with Mermaid's syntax as documented at mermaid.js.org. V1 supports:
+The parser aims for compatibility with Mermaid's syntax as documented at mermaid.js.org. Currently supported:
 
 ### Sequence diagram syntax
 
@@ -465,6 +602,19 @@ The parser aims for compatibility with Mermaid's syntax as documented at mermaid
 - `State1 --> State2 : label`
 - `state "Description" as s1`
 - Composite states (`state Name { ... }`) — rendered as a labeled box around their nested states
+
+### Journey syntax
+
+- `title Text`
+- `section Name` — tasks before the first section go into an untitled section
+- `Task name: score: Actor1, Actor2` — score is 1–7 (out-of-range clamps, non-numeric defaults to 4); the actor list is optional
+
+### Timeline syntax
+
+- `title Text`
+- `section Name` — periods before the first section go into an untitled section
+- `period : event : event` — any number of events per period, including none
+- Continuation lines (`: another event`) append events to the previous period
 
 ### Simplifications
 
@@ -587,7 +737,7 @@ sequenceDiagram
 - One dependency: [`@dagrejs/dagre`](https://github.com/dagrejs/dagre) (the same layout engine Mermaid uses) — external in the ESM/CJS builds (resolved from `node_modules` like any other dependency), bundled into the browser-global build since it has no module resolution of its own
 - Tree-shakeable: `import { sequence }` only pulls in the sequence renderer (ESM build only — the CJS build's `require` interop defeats shaking, and dagre stays a separate resolved import in either case)
 - Browser global: `window.AnimatedMermaidDiagrams` via `dist/animated-mermaid-diagrams.umd.js` (an IIFE build for `<script>` tags; it does not register with AMD/CommonJS loaders)
-- Bundle size: ~32KB gzipped for the browser-global build (enforced by a CI size budget) (all diagram types, dagre included) — most of that is dagre itself; the ESM/CJS builds are far smaller since dagre stays an external import there
+- Bundle size: ~33KB gzipped for the browser-global build (enforced by a CI size budget) (all diagram types, dagre included) — most of that is dagre itself; the ESM/CJS builds are far smaller since dagre stays an external import there
 - Mermaid parser is a lightweight subset parser — does NOT depend on the mermaid package
 
 ## Accessibility

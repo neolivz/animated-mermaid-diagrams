@@ -269,13 +269,15 @@
       <a href="#fig-06"><span class="n">06</span> Composite state</a>
       <a href="#fig-07"><span class="n">07</span> Auto-init (class)</a>
       <a href="#fig-08"><span class="n">08</span> Auto-init (data)</a>
+      <a href="#fig-09"><span class="n">09</span> User journey</a>
+      <a href="#fig-10"><span class="n">10</span> Timeline</a>
     </nav>
 
     <main>
       <header>
-        <div class="eyebrow"><b>animated-mermaid-diagrams</b> · rev 0.2.0</div>
+        <div class="eyebrow"><b>animated-mermaid-diagrams</b> · rev 0.3.0</div>
         <h1>Diagrams that draw themselves.</h1>
-        <p class="lede">Step-by-step animation for Mermaid <strong>sequence</strong>, <strong>flowchart</strong>, and <strong>state</strong> diagrams. The same layout engine as Mermaid, one script tag, ~32&nbsp;KB.</p>
+        <p class="lede">Step-by-step animation for Mermaid <strong>sequence</strong>, <strong>flowchart</strong>, <strong>state</strong>, <strong>journey</strong>, and <strong>timeline</strong> diagrams. The same layout engine as Mermaid, one script tag, ~33&nbsp;KB.</p>
         <span class="install">npm install animated-mermaid-diagrams</span>
       </header>
 
@@ -428,9 +430,29 @@ flowchart LR
      keyboard, step-duration, step-delay, width, height, padding … --&gt;</code></pre></details>
       </section>
 
+      <section id="fig-09">
+        <div class="plate-head">
+          <span class="fig">FIG. 09 — USER JOURNEY</span>
+          <h2>Scored tasks, one face at a time</h2>
+        </div>
+        <p class="how">New in 0.3.0. Each task is one animation step — its face and height track the 1–7 score, and section bands appear with their first task.</p>
+        <div class="panel"><div id="journey"></div></div>
+        <details class="src"><summary>source</summary><pre><code id="src-09"></code></pre></details>
+      </section>
+
+      <section id="fig-10">
+        <div class="plate-head">
+          <span class="fig">FIG. 10 — TIMELINE</span>
+          <h2>Periods and their events</h2>
+        </div>
+        <p class="how">New in 0.3.0. Each period pops onto the spine with its events stacking below; <code>: continuation</code> lines add more events to a period.</p>
+        <div class="panel"><div id="timeline"></div></div>
+        <details class="src"><summary>source</summary><pre><code id="src-10"></code></pre></details>
+      </section>
+
       <footer>
         <div><dt>Project</dt><dd>animated-mermaid-diagrams</dd></div>
-        <div><dt>Revision</dt><dd>0.2.0</dd></div>
+        <div><dt>Revision</dt><dd>0.3.0</dd></div>
         <div><dt>Layout engine</dt><dd>dagre — same as Mermaid</dd></div>
         <div><dt>License</dt><dd>MIT</dd></div>
         <div><dt>Sheet</dt><dd>1 of 1</dd></div>
@@ -520,6 +542,28 @@ flowchart LR
         Server-->>Client: Response
         Client->>Server: Ack
       `,
+      journey: `
+      journey
+        title My working day
+        section Go to work
+          Make tea: 5: Me
+          Go upstairs: 3: Me
+          Do work: 1: Me, Cat
+        section Go home
+          Go downstairs: 5: Me
+          Sit down: 7: Me
+      `,
+      timeline: `
+      timeline
+        title History of Social Media
+        section 2000s
+        2002 : LinkedIn
+        2004 : Facebook : Google
+        2005 : YouTube
+        section 2010s
+        2010 : Pinterest
+        2011 : Snapchat : Twitch
+      `,
     }
 
     // FIG. 00 — hero, with a live step counter driven by the real callbacks
@@ -576,6 +620,12 @@ flowchart LR
     // FIG. 06
     render(document.getElementById('state-composite'), CHARTS.state_composite)
 
+    // FIG. 09
+    render(document.getElementById('journey'), CHARTS.journey)
+
+    // FIG. 10
+    render(document.getElementById('timeline'), CHARTS.timeline)
+
     // FIG. 07
     // Source blocks show the complete, runnable call for what was rendered
     const dedent = (t) => {
@@ -596,6 +646,8 @@ flowchart LR
       '04': renderCall('flow_click', "{ advance: 'click', trigger: 'immediate' }"),
       '05': renderCall('seq_click', "{ advance: 'click', trigger: 'immediate' }"),
       '06': renderCall('state_composite'),
+      '09': renderCall('journey'),
+      '10': renderCall('timeline'),
     }
     for (const [num, text] of Object.entries(SRC)) {
       const el = document.getElementById('src-' + num)

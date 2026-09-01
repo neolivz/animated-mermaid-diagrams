@@ -1,4 +1,4 @@
-export type DetectedType = 'sequence' | 'flowchart' | 'state'
+export type DetectedType = 'sequence' | 'flowchart' | 'state' | 'journey' | 'timeline'
 
 export function detectType(text: string): DetectedType {
   const first = text
@@ -9,5 +9,7 @@ export function detectType(text: string): DetectedType {
   if (/^sequenceDiagram\b/.test(first)) return 'sequence'
   if (/^(flowchart|graph)\b/.test(first)) return 'flowchart'
   if (/^stateDiagram(-v2)?\b/.test(first)) return 'state'
+  if (/^journey\b/.test(first)) return 'journey'
+  if (/^timeline\b/.test(first)) return 'timeline'
   throw new Error(`Unsupported diagram type: "${first.split(/\s/)[0]}"`)
 }

@@ -192,4 +192,53 @@ export interface StateConfig {
   options?: DiagramOptions
 }
 
-export type DiagramConfig = SequenceConfig | FlowchartConfig | StateConfig
+// ---- journey ----
+
+export interface JourneyTask {
+  name: string
+  /** satisfaction score 1–7 (Mermaid journey scale); out-of-range values clamp */
+  score: number
+  actors?: string[]
+  highlight?: Highlight
+}
+
+export interface JourneySection {
+  /** untitled sections (tasks before the first `section` line) omit this */
+  title?: string
+  tasks: JourneyTask[]
+}
+
+export interface JourneyConfig {
+  type?: 'journey'
+  title?: string
+  sections: JourneySection[]
+  options?: DiagramOptions
+}
+
+// ---- timeline ----
+
+export interface TimelinePeriod {
+  label: string
+  events: string[]
+  highlight?: Highlight
+}
+
+export interface TimelineSection {
+  /** untitled sections (periods before the first `section` line) omit this */
+  title?: string
+  periods: TimelinePeriod[]
+}
+
+export interface TimelineConfig {
+  type?: 'timeline'
+  title?: string
+  sections: TimelineSection[]
+  options?: DiagramOptions
+}
+
+export type DiagramConfig =
+  | SequenceConfig
+  | FlowchartConfig
+  | StateConfig
+  | JourneyConfig
+  | TimelineConfig

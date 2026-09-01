@@ -4,6 +4,22 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.3.0]
+
+### Added
+
+- User journey diagrams (`journey` Mermaid syntax or a `JourneyConfig`): scored tasks 1–7 with
+  mood faces, section bands, actor lines, and one animation step per task. New exports: `journey`,
+  `parseJourney`, and the `JourneyConfig`/`JourneySection`/`JourneyTask` types.
+- Timeline diagrams (`timeline` Mermaid syntax or a `TimelineConfig`): periods on a spine with
+  stacked event boxes, section bands, `: continuation` lines, and one animation step per period.
+  New exports: `timeline`, `parseTimeline`, and the
+  `TimelineConfig`/`TimelineSection`/`TimelinePeriod` types.
+- Both new types support the uniform `highlight` API, all trigger modes, click-to-step
+  (`advance: 'click'`), and keyboard transport, via the shared controller.
+- `detectType` recognizes `journey` and `timeline` headers; `render()` infers the two config
+  shapes from the first section's contents (tasks vs periods) when `type` is omitted.
+
 ## [0.2.0]
 
 ### Added

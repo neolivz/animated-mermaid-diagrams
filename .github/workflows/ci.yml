@@ -22,11 +22,11 @@ jobs:
       - run: npm test
       - run: npm run typecheck
       - run: npm run build
-      - name: Size budget (browser bundle ≤ 34 KB gzipped)
+      - name: Size budget (browser bundle ≤ 36 KB gzipped)
         run: |
           SIZE=$(gzip -c dist/animated-mermaid-diagrams.umd.js | wc -c)
           echo "gzipped browser bundle: ${SIZE} bytes"
-          test "$SIZE" -le 34816
+          test "$SIZE" -le 36864
 
   e2e:
     runs-on: ubuntu-latest

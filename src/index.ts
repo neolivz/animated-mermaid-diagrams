@@ -5,13 +5,19 @@ import { parseFlowchart } from './flowchart/parse'
 import { flowchart } from './flowchart/render'
 import { parseState } from './state/parse'
 import { stateDiagram } from './state/render'
+import { parseJourney } from './journey/parse'
+import { journey } from './journey/render'
+import { parseTimeline } from './timeline/parse'
+import { timeline } from './timeline/render'
 import type {
   DiagramConfig,
   DiagramController,
   DiagramOptions,
   FlowchartConfig,
+  JourneyConfig,
   SequenceConfig,
   StateConfig,
+  TimelineConfig,
 } from './types'
 
 export function render(
@@ -23,11 +29,15 @@ export function render(
     const kind = detectType(input)
     if (kind === 'sequence') return sequence(container, { ...parseSequence(input), options })
     if (kind === 'flowchart') return flowchart(container, { ...parseFlowchart(input), options })
+    if (kind === 'journey') return journey(container, { ...parseJourney(input), options })
+    if (kind === 'timeline') return timeline(container, { ...parseTimeline(input), options })
     return stateDiagram(container, { ...parseState(input), options })
   }
   const merged = { ...input, options: { ...input.options, ...options } }
   // Inference priority is deliberate: flowchart (nodes) → state (states) →
-  // sequence (actors). A config carrying multiple shapes should set `type`.
+  // sequence (actors) → journey/timeline (sections, told apart by whether the
+  // first section holds tasks or periods). A config carrying multiple shapes
+  // should set `type`.
   if (merged.type === 'flowchart' || (merged.type === undefined && 'nodes' in merged)) {
     const cfg = merged as FlowchartConfig
     if (!Array.isArray(cfg.nodes) || !Array.isArray(cfg.edges)) {
@@ -48,6 +58,27 @@ export function render(
       throw new Error('Sequence config requires "actors" and "steps" arrays')
     }
     return sequence(container, cfg)
+  }
+  const sections = 'sections' in merged && Array.isArray(merged.sections) ? merged.sections : undefined
+  // First-section semantics, matching the priority comment above: a config
+  // mixing tasks- and periods-shaped sections follows its first section (the
+  // renderers tolerate the mismatched rest); set `type` to be explicit.
+  const firstSection: object | undefined = sections?.[0]
+  const journeyLike =
+    merged.type === 'journey' ||
+    (merged.type === undefined && firstSection !== undefined && 'tasks' in firstSection)
+  if (journeyLike) {
+    const cfg = merged as JourneyConfig
+    if (!Array.isArray(cfg.sections)) throw new Error('Journey config requires a "sections" array')
+    return journey(container, cfg)
+  }
+  const timelineLike =
+    merged.type === 'timeline' ||
+    (merged.type === undefined && firstSection !== undefined && 'periods' in firstSection)
+  if (timelineLike) {
+    const cfg = merged as TimelineConfig
+    if (!Array.isArray(cfg.sections)) throw new Error('Timeline config requires a "sections" array')
+    return timeline(container, cfg)
   }
   throw new Error('Cannot determine diagram type from config; set the "type" field')
 }
@@ -166,9 +197,13 @@ export function init(
 export { sequence } from './sequence/render'
 export { flowchart } from './flowchart/render'
 export { stateDiagram } from './state/render'
+export { journey } from './journey/render'
+export { timeline } from './timeline/render'
 export { parseSequence } from './sequence/parse'
 export { parseFlowchart } from './flowchart/parse'
 export { parseState } from './state/parse'
+export { parseJourney } from './journey/parse'
+export { parseTimeline } from './timeline/parse'
 export { detectType } from './detect'
 export type { DetectedType } from './detect'
 export { lightTheme, darkTheme } from './theme'
@@ -194,4 +229,10 @@ export type {
   StateConfig,
   StateNode,
   StateTransition,
+  JourneyConfig,
+  JourneySection,
+  JourneyTask,
+  TimelineConfig,
+  TimelineSection,
+  TimelinePeriod,
 } from './types'

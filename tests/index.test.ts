@@ -1,6 +1,16 @@
 import { describe, it, expect, vi } from 'vitest'
 import { detectType } from '../src/detect'
-import { render, init, sequence, flowchart, stateDiagram, lightTheme, darkTheme } from '../src/index'
+import {
+  render,
+  init,
+  sequence,
+  flowchart,
+  stateDiagram,
+  journey,
+  timeline,
+  lightTheme,
+  darkTheme,
+} from '../src/index'
 // The public type surface is imported through the package entry (not ../src/types)
 // on purpose: `npm run typecheck` covers this file, so anything dropped from
 // index.ts's `export type` block fails the build here rather than silently
@@ -25,15 +35,23 @@ import type {
   StateConfig,
   StateNode,
   StateTransition,
+  JourneyConfig,
+  JourneySection,
+  JourneyTask,
+  TimelineConfig,
+  TimelineSection,
+  TimelinePeriod,
   ThemeTokens,
 } from '../src/index'
 
 describe('detectType', () => {
-  it('detects all three v1 types', () => {
+  it('detects all five supported types', () => {
     expect(detectType('sequenceDiagram\nA->>B: x')).toBe('sequence')
     expect(detectType('  flowchart TD\n  a-->b')).toBe('flowchart')
     expect(detectType('graph LR\n a-->b')).toBe('flowchart')
     expect(detectType('stateDiagram-v2\nA --> B')).toBe('state')
+    expect(detectType('journey\ntitle Day\nsection S\nA: 4: Me')).toBe('journey')
+    expect(detectType('timeline\ntitle History\n2002 : LinkedIn')).toBe('timeline')
   })
 
   it('skips comments and blank lines before the header', () => {
@@ -50,6 +68,8 @@ describe('render with mermaid text', () => {
     ['sequenceDiagram\nA->>B: hello', 'sequence'],
     ['flowchart TD\na[Start] --> b[End]', 'flowchart'],
     ['stateDiagram-v2\n[*] --> Idle\nIdle --> Done', 'state'],
+    ['journey\ntitle Day\nsection S\nWake: 3: Me', 'journey'],
+    ['timeline\ntitle History\n2002 : LinkedIn', 'timeline'],
   ])('renders %s → svg', (text) => {
     const container = document.createElement('div')
     const ctrl = render(container, text, { trigger: 'manual' })
@@ -106,6 +126,40 @@ describe('render with JS config', () => {
     })
     expect(container.querySelector('svg')).not.toBeNull()
     ctrl.destroy()
+  })
+
+  it('routes a mixed-section config by its first section without crashing', () => {
+    const container = document.createElement('div')
+    // Deliberately not a valid DiagramConfig (mixed section shapes) — the
+    // point is that runtime routing stays graceful, hence the cast.
+    const ctrl = render(container, {
+      sections: [
+        { periods: [{ label: '2020', events: ['x'] }] },
+        { tasks: [{ name: 'stray', score: 4 }] },
+      ],
+      options: { animate: false },
+    } as unknown as DiagramConfig)
+    // First section is periods-shaped → timeline; the tasks-shaped section is
+    // tolerated as empty rather than crashing the renderer.
+    const texts = [...container.querySelectorAll('text')].map((e) => e.textContent)
+    expect(texts).toContain('2020')
+    expect(texts).not.toContain('stray')
+    ctrl.destroy()
+  })
+
+  it('tells journey and timeline apart by section contents when type is missing', () => {
+    const j = render(document.createElement('div'), {
+      sections: [{ tasks: [{ name: 'A', score: 4 }] }],
+      options: { animate: false },
+    })
+    const containerT = document.createElement('div')
+    const t = render(containerT, {
+      sections: [{ periods: [{ label: '2020', events: ['x'] }] }],
+      options: { animate: false },
+    })
+    expect([...containerT.querySelectorAll('text')].map((e) => e.textContent)).toContain('2020')
+    j.destroy()
+    t.destroy()
   })
 })
 
@@ -312,10 +366,12 @@ describe('render config validation', () => {
 })
 
 describe('public exports', () => {
-  it('exposes the three direct renderers', () => {
+  it('exposes the five direct renderers', () => {
     expect(typeof sequence).toBe('function')
     expect(typeof flowchart).toBe('function')
     expect(typeof stateDiagram).toBe('function')
+    expect(typeof journey).toBe('function')
+    expect(typeof timeline).toBe('function')
   })
 
   // Every v1.1 config field must be nameable from the package entry, not just
@@ -366,14 +422,26 @@ describe('public exports', () => {
       groups: [group],
     }
 
+    const task: JourneyTask = { name: 'Make tea', score: 5, actors: ['Me'], highlight: 'green' }
+    const journeySection: JourneySection = { title: 'Morning', tasks: [task] }
+    const journeyCfg: JourneyConfig = { type: 'journey', title: 'Day', sections: [journeySection] }
+
+    const period: TimelinePeriod = { label: '2002', events: ['LinkedIn'], highlight: 'red' }
+    const timelineSection: TimelineSection = { title: '2000s', periods: [period] }
+    const timelineCfg: TimelineConfig = {
+      type: 'timeline',
+      title: 'History',
+      sections: [timelineSection],
+    }
+
     const theme: ThemeTokens = { ...lightTheme }
     const options: DiagramOptions = { theme, trigger: 'manual', animate: false }
-    const configs: DiagramConfig[] = [seqCfg, flowCfg, stateCfg]
+    const configs: DiagramConfig[] = [seqCfg, flowCfg, stateCfg, journeyCfg, timelineCfg]
 
     const controllers: DiagramController[] = configs.map((cfg) =>
       render(document.createElement('div'), cfg, options),
     )
-    expect(controllers).toHaveLength(3)
+    expect(controllers).toHaveLength(5)
     controllers.forEach((c) => c.destroy())
   })
 
