@@ -10,7 +10,7 @@ npm install animated-mermaid-diagrams
 
 ## Vision
 
-Animate every Mermaid diagram type. V1 (currently `0.1.0`, unreleased) ships sequence, flowchart, and state diagrams — the three types where step-by-step animation adds the most value. Subsequent releases add the remaining types.
+Animate every Mermaid diagram type. V1 (currently `0.2.0`) ships sequence, flowchart, and state diagrams — the three types where step-by-step animation adds the most value. Subsequent releases add the remaining types.
 
 ### Roadmap
 
