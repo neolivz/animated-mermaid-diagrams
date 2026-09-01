@@ -10,6 +10,8 @@ import {
   timeline,
   classDiagram,
   erDiagram,
+  pie,
+  gantt,
   lightTheme,
   darkTheme,
 } from '../src/index'
@@ -53,11 +55,22 @@ import type {
   ErRelationship,
   ErCardinality,
   ErKey,
+  PieConfig,
+  PieSlice,
+  GanttConfig,
+  GanttSection,
+  GanttTask,
+  GanttStatus,
   ThemeTokens,
 } from '../src/index'
 
 describe('detectType', () => {
-  it('detects all seven supported types', () => {
+  it('detects pie and gantt headers', () => {
+    expect(detectType('pie showData\ntitle X\n"A" : 1')).toBe('pie')
+    expect(detectType('gantt\ntitle X')).toBe('gantt')
+  })
+
+  it('detects all seven pre-0.5 types', () => {
     expect(detectType('sequenceDiagram\nA->>B: x')).toBe('sequence')
     expect(detectType('  flowchart TD\n  a-->b')).toBe('flowchart')
     expect(detectType('graph LR\n a-->b')).toBe('flowchart')
@@ -73,7 +86,7 @@ describe('detectType', () => {
   })
 
   it('throws on unknown input', () => {
-    expect(() => detectType('pie\n"a": 1')).toThrow(/Unsupported|Unknown/)
+    expect(() => detectType('mindmap\nroot')).toThrow(/Unsupported|Unknown/)
   })
 })
 
@@ -86,6 +99,8 @@ describe('render with mermaid text', () => {
     ['timeline\ntitle History\n2002 : LinkedIn', 'timeline'],
     ['classDiagram\nAnimal <|-- Duck\nAnimal : +int age', 'class'],
     ['erDiagram\nCUSTOMER ||--o{ ORDER : places', 'er'],
+    ['pie\ntitle P\n"A" : 1\n"B" : 2', 'pie'],
+    ['gantt\ndateFormat YYYY-MM-DD\nsection S\nT : 2024-01-01, 2d', 'gantt'],
   ])('renders %s → svg', (text) => {
     const container = document.createElement('div')
     const ctrl = render(container, text, { trigger: 'manual' })
@@ -163,6 +178,28 @@ describe('render with JS config', () => {
     ctrl.destroy()
   })
 
+  it('tells journey and gantt apart by the first task fields when type is missing', () => {
+    const cj = document.createElement('div')
+    const j = render(cj, {
+      sections: [{ tasks: [{ name: 'Scored', score: 5 }] }],
+      options: { animate: false },
+    })
+    // journey renders actor/score plot; its task label is present
+    expect([...cj.querySelectorAll('text')].map((e) => e.textContent)).toContain('Scored')
+
+    const cg = document.createElement('div')
+    const g = render(cg, {
+      sections: [{ tasks: [{ name: 'Timed', start: '2024-01-01', durationDays: 2 }] }],
+      options: { animate: false },
+    })
+    // gantt renders a date axis — tick labels like "01-01" only exist there
+    const ganttTexts = [...cg.querySelectorAll('text')].map((e) => e.textContent)
+    expect(ganttTexts).toContain('Timed')
+    expect(ganttTexts.some((t) => /^\d{2}-\d{2}$/.test(t ?? ''))).toBe(true)
+    j.destroy()
+    g.destroy()
+  })
+
   it('tells journey and timeline apart by section contents when type is missing', () => {
     const j = render(document.createElement('div'), {
       sections: [{ tasks: [{ name: 'A', score: 4 }] }],
@@ -197,8 +234,8 @@ A->>B: Hi</pre>
   it('isolates failures: a bad diagram restores its pre and the rest render', () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
     document.body.innerHTML = `
-      <pre class="animated-mermaid-diagrams">pie
-"a": 1</pre>
+      <pre class="animated-mermaid-diagrams">mindmap
+root</pre>
       <pre class="animated-mermaid-diagrams">sequenceDiagram
 A->>B: Hi</pre>`
     const controllers = init()
@@ -249,8 +286,8 @@ A->>B: Hi</pre>`
   it('isolates failures for the data-attribute form too', () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
     document.body.innerHTML = `
-      <div data-animated-mermaid>pie
-"a": 1</div>
+      <div data-animated-mermaid>mindmap
+root</div>
       <div data-animated-mermaid>sequenceDiagram
 A->>B: Hi</div>`
     const controllers = init()
@@ -382,7 +419,7 @@ describe('render config validation', () => {
 })
 
 describe('public exports', () => {
-  it('exposes the seven direct renderers', () => {
+  it('exposes the nine direct renderers', () => {
     expect(typeof sequence).toBe('function')
     expect(typeof flowchart).toBe('function')
     expect(typeof stateDiagram).toBe('function')
@@ -390,6 +427,8 @@ describe('public exports', () => {
     expect(typeof timeline).toBe('function')
     expect(typeof classDiagram).toBe('function')
     expect(typeof erDiagram).toBe('function')
+    expect(typeof pie).toBe('function')
+    expect(typeof gantt).toBe('function')
   })
 
   // Every v1.1 config field must be nameable from the package entry, not just
@@ -493,14 +532,34 @@ describe('public exports', () => {
       relationships: [relationship],
     }
 
+    const slice: PieSlice = { label: 'A', value: 3, highlight: 'green' }
+    const pieCfg: PieConfig = { type: 'pie', title: 'P', showData: true, slices: [slice, { label: 'B', value: 1 }] }
+
+    const status: GanttStatus = 'active'
+    const ganttTask: GanttTask = {
+      name: 'Build',
+      id: 'b',
+      start: '2024-01-01',
+      durationDays: 3,
+      status,
+      highlight: 'red',
+    }
+    const ganttSection: GanttSection = {
+      title: 'S',
+      tasks: [ganttTask, { name: 'Ship', after: 'b', milestone: true }],
+    }
+    const ganttCfg: GanttConfig = { type: 'gantt', title: 'G', sections: [ganttSection] }
+
     const theme: ThemeTokens = { ...lightTheme }
     const options: DiagramOptions = { theme, trigger: 'manual', animate: false }
-    const configs: DiagramConfig[] = [seqCfg, flowCfg, stateCfg, journeyCfg, timelineCfg, classCfg, erCfg]
+    const configs: DiagramConfig[] = [
+      seqCfg, flowCfg, stateCfg, journeyCfg, timelineCfg, classCfg, erCfg, pieCfg, ganttCfg,
+    ]
 
     const controllers: DiagramController[] = configs.map((cfg) =>
       render(document.createElement('div'), cfg, options),
     )
-    expect(controllers).toHaveLength(7)
+    expect(controllers).toHaveLength(9)
     controllers.forEach((c) => c.destroy())
   })
 

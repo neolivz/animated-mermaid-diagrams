@@ -6,6 +6,8 @@ export type DetectedType =
   | 'timeline'
   | 'class'
   | 'er'
+  | 'pie'
+  | 'gantt'
 
 export function detectType(text: string): DetectedType {
   const first = text
@@ -20,5 +22,7 @@ export function detectType(text: string): DetectedType {
   if (/^timeline\b/.test(first)) return 'timeline'
   if (/^classDiagram\b/.test(first)) return 'class'
   if (/^erDiagram\b/.test(first)) return 'er'
+  if (/^pie\b/.test(first)) return 'pie'
+  if (/^gantt\b/.test(first)) return 'gantt'
   throw new Error(`Unsupported diagram type: "${first.split(/\s/)[0]}"`)
 }

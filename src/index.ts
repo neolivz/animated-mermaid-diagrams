@@ -13,6 +13,10 @@ import { parseClass } from './class/parse'
 import { classDiagram } from './class/render'
 import { parseEr } from './er/parse'
 import { erDiagram } from './er/render'
+import { parsePie } from './pie/parse'
+import { pie } from './pie/render'
+import { parseGantt } from './gantt/parse'
+import { gantt } from './gantt/render'
 import type {
   ClassConfig,
   DiagramConfig,
@@ -20,7 +24,9 @@ import type {
   DiagramOptions,
   ErConfig,
   FlowchartConfig,
+  GanttConfig,
   JourneyConfig,
+  PieConfig,
   SequenceConfig,
   StateConfig,
   TimelineConfig,
@@ -39,6 +45,8 @@ export function render(
     if (kind === 'timeline') return timeline(container, { ...parseTimeline(input), options })
     if (kind === 'class') return classDiagram(container, { ...parseClass(input), options })
     if (kind === 'er') return erDiagram(container, { ...parseEr(input), options })
+    if (kind === 'pie') return pie(container, { ...parsePie(input), options })
+    if (kind === 'gantt') return gantt(container, { ...parseGantt(input), options })
     return stateDiagram(container, { ...parseState(input), options })
   }
   const merged = { ...input, options: { ...input.options, ...options } }
@@ -81,11 +89,34 @@ export function render(
     }
     return erDiagram(container, cfg)
   }
+  if (merged.type === 'pie' || (merged.type === undefined && 'slices' in merged)) {
+    const cfg = merged as PieConfig
+    if (!Array.isArray(cfg.slices)) throw new Error('Pie config requires a "slices" array')
+    return pie(container, cfg)
+  }
   const sections = 'sections' in merged && Array.isArray(merged.sections) ? merged.sections : undefined
   // First-section semantics, matching the priority comment above: a config
   // mixing tasks- and periods-shaped sections follows its first section (the
   // renderers tolerate the mismatched rest); set `type` to be explicit.
   const firstSection: object | undefined = sections?.[0]
+  // Journey and gantt sections BOTH hold `tasks` — disambiguated by the first
+  // task's fields: a `score` means journey, timing fields mean gantt, and a
+  // bare task defaults to journey (pre-0.5.0 behavior). Set `type` to be sure.
+  const firstTask: object | undefined =
+    firstSection !== undefined && 'tasks' in firstSection && Array.isArray((firstSection as JourneyConfig['sections'][0]).tasks)
+      ? ((firstSection as JourneyConfig['sections'][0]).tasks[0] as object | undefined)
+      : undefined
+  const ganttLike =
+    merged.type === 'gantt' ||
+    (merged.type === undefined &&
+      firstTask !== undefined &&
+      !('score' in firstTask) &&
+      ('start' in firstTask || 'after' in firstTask || 'durationDays' in firstTask || 'end' in firstTask || 'milestone' in firstTask))
+  if (ganttLike) {
+    const cfg = merged as GanttConfig
+    if (!Array.isArray(cfg.sections)) throw new Error('Gantt config requires a "sections" array')
+    return gantt(container, cfg)
+  }
   const journeyLike =
     merged.type === 'journey' ||
     (merged.type === undefined && firstSection !== undefined && 'tasks' in firstSection)
@@ -223,6 +254,8 @@ export { journey } from './journey/render'
 export { timeline } from './timeline/render'
 export { classDiagram } from './class/render'
 export { erDiagram } from './er/render'
+export { pie } from './pie/render'
+export { gantt } from './gantt/render'
 export { parseSequence } from './sequence/parse'
 export { parseFlowchart } from './flowchart/parse'
 export { parseState } from './state/parse'
@@ -230,6 +263,8 @@ export { parseJourney } from './journey/parse'
 export { parseTimeline } from './timeline/parse'
 export { parseClass } from './class/parse'
 export { parseEr } from './er/parse'
+export { parsePie } from './pie/parse'
+export { parseGantt } from './gantt/parse'
 export { detectType } from './detect'
 export type { DetectedType } from './detect'
 export { lightTheme, darkTheme } from './theme'
@@ -271,4 +306,10 @@ export type {
   ErRelationship,
   ErCardinality,
   ErKey,
+  PieConfig,
+  PieSlice,
+  GanttConfig,
+  GanttSection,
+  GanttTask,
+  GanttStatus,
 } from './types'

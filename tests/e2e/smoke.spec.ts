@@ -27,8 +27,16 @@ test('all figures render without console errors', async ({ page }) => {
     if (m.type() === 'error') errors.push(m.text())
   })
   await page.goto(DEMO)
-  await expect(page.locator('svg')).toHaveCount(13)
+  await expect(page.locator('svg')).toHaveCount(15)
   expect(errors).toEqual([])
+})
+
+test('pie and gantt figures play to completion on scroll', async ({ page }) => {
+  await page.goto(DEMO)
+  await page.locator('#fig-13').scrollIntoViewIfNeeded()
+  await expect.poll(() => visibleTexts(page, '#fig-13'), { timeout: 15000 }).toContain('renderers — 9')
+  await page.locator('#fig-14').scrollIntoViewIfNeeded()
+  await expect.poll(() => visibleTexts(page, '#fig-14'), { timeout: 20000 }).toContain('Publish')
 })
 
 test('journey and timeline figures play to completion on scroll', async ({ page }) => {

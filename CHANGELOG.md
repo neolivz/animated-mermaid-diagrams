@@ -4,6 +4,27 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.5.0]
+
+### Added
+
+- Pie charts (`pie` Mermaid syntax or a `PieConfig`): slices from a fixed categorical palette
+  drawn clockwise in document order, in-slice percentages, legend with optional values
+  (`showData`), one animation step per slice. New exports: `pie`, `parsePie`, and the
+  `PieConfig`/`PieSlice` types.
+- Gantt charts (`gantt` Mermaid syntax or a `GanttConfig`): date-axis timeline with adaptive
+  ticks, section header bands, bars that draw left-to-right, `after` dependency resolution,
+  milestones as diamonds, `done`/`active`/`crit` status colors. New exports: `gantt`,
+  `parseGantt`, and the `GanttConfig`/`GanttSection`/`GanttTask`/`GanttStatus` types.
+- Both support `highlight`, all trigger modes, and keyboard/click step-through via the shared
+  controller.
+
+### Changed
+
+- `pie` and `gantt` headers are no longer "unsupported diagram type" errors in `detectType`.
+- CI browser-bundle size budget raised to 44 KB gzipped (bundle is now ~40 KB with nine diagram
+  types).
+
 ## [0.4.0]
 
 ### Added

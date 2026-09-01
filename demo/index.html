@@ -273,13 +273,15 @@
       <a href="#fig-10"><span class="n">10</span> Timeline</a>
       <a href="#fig-11"><span class="n">11</span> Class diagram</a>
       <a href="#fig-12"><span class="n">12</span> ER diagram</a>
+      <a href="#fig-13"><span class="n">13</span> Pie chart</a>
+      <a href="#fig-14"><span class="n">14</span> Gantt chart</a>
     </nav>
 
     <main>
       <header>
-        <div class="eyebrow"><b>animated-mermaid-diagrams</b> · rev 0.4.0</div>
+        <div class="eyebrow"><b>animated-mermaid-diagrams</b> · rev 0.5.0</div>
         <h1>Diagrams that draw themselves.</h1>
-        <p class="lede">Step-by-step animation for Mermaid <strong>sequence</strong>, <strong>flowchart</strong>, <strong>state</strong>, <strong>journey</strong>, <strong>timeline</strong>, <strong>class</strong>, and <strong>ER</strong> diagrams. The same layout engine as Mermaid, one script tag, ~37&nbsp;KB.</p>
+        <p class="lede">Step-by-step animation for Mermaid <strong>sequence</strong>, <strong>flowchart</strong>, <strong>state</strong>, <strong>journey</strong>, <strong>timeline</strong>, <strong>class</strong>, <strong>ER</strong>, <strong>pie</strong>, and <strong>gantt</strong> diagrams. The same layout engine as Mermaid, one script tag, ~40&nbsp;KB.</p>
         <span class="install">npm install animated-mermaid-diagrams</span>
       </header>
 
@@ -472,9 +474,29 @@ flowchart LR
         <details class="src"><summary>source</summary><pre><code id="src-12"></code></pre></details>
       </section>
 
+      <section id="fig-13">
+        <div class="plate-head">
+          <span class="fig">FIG. 13 — PIE CHART</span>
+          <h2>One slice at a time</h2>
+        </div>
+        <p class="how">New in 0.5.0. Slices fade in clockwise with their legend rows; <code>showData</code> puts the raw values in the legend, percentages live in the slices.</p>
+        <div class="panel"><div id="pie"></div></div>
+        <details class="src"><summary>source</summary><pre><code id="src-13"></code></pre></details>
+      </section>
+
+      <section id="fig-14">
+        <div class="plate-head">
+          <span class="fig">FIG. 14 — GANTT CHART</span>
+          <h2>Bars grow along the timeline</h2>
+        </div>
+        <p class="how">New in 0.5.0. Each bar draws left-to-right in time order — <code>after</code> dependencies resolve automatically, milestones pop as diamonds, and <code>done</code>/<code>active</code>/<code>crit</code> take status colors.</p>
+        <div class="panel"><div id="gantt"></div></div>
+        <details class="src"><summary>source</summary><pre><code id="src-14"></code></pre></details>
+      </section>
+
       <footer>
         <div><dt>Project</dt><dd>animated-mermaid-diagrams</dd></div>
-        <div><dt>Revision</dt><dd>0.4.0</dd></div>
+        <div><dt>Revision</dt><dd>0.5.0</dd></div>
         <div><dt>Layout engine</dt><dd>dagre — same as Mermaid</dd></div>
         <div><dt>License</dt><dd>MIT</dd></div>
         <div><dt>Sheet</dt><dd>1 of 1</dd></div>
@@ -646,6 +668,27 @@ flowchart LR
           string deliveryAddress FK
         }
       `,
+      pie: `
+      pie showData
+        title Where the bundle bytes go
+        "dagre layout" : 24
+        "renderers" : 9
+        "parsers" : 4
+        "controller & themes" : 3
+      `,
+      gantt: `
+      gantt
+        title Release 0.5.0
+        dateFormat YYYY-MM-DD
+        section Build
+          Parsers : done, p, 2026-08-25, 3d
+          Renderers : done, r, after p, 4d
+          Integration : active, i, after r, 2d
+        section Ship
+          Review : crit, v, after i, 2d
+          Demo & docs : after v, 1d
+          Publish : milestone, after v, 0d
+      `,
     }
 
     // FIG. 00 — hero, with a live step counter driven by the real callbacks
@@ -714,6 +757,12 @@ flowchart LR
     // FIG. 12
     render(document.getElementById('er'), CHARTS.er)
 
+    // FIG. 13
+    render(document.getElementById('pie'), CHARTS.pie)
+
+    // FIG. 14
+    render(document.getElementById('gantt'), CHARTS.gantt)
+
     // FIG. 07
     // Source blocks show the complete, runnable call for what was rendered
     const dedent = (t) => {
@@ -738,6 +787,8 @@ flowchart LR
       '10': renderCall('timeline'),
       '11': renderCall('class'),
       '12': renderCall('er'),
+      '13': renderCall('pie'),
+      '14': renderCall('gantt'),
     }
     for (const [num, text] of Object.entries(SRC)) {
       const el = document.getElementById('src-' + num)

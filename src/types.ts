@@ -323,6 +323,57 @@ export interface ErConfig {
   options?: DiagramOptions
 }
 
+// ---- pie ----
+
+export interface PieSlice {
+  label: string
+  /** non-negative; non-finite or negative values are treated as 0 */
+  value: number
+  highlight?: Highlight
+}
+
+export interface PieConfig {
+  type?: 'pie'
+  title?: string
+  /** show each slice's value in the legend (Mermaid `pie showData`) */
+  showData?: boolean
+  slices: PieSlice[]
+  options?: DiagramOptions
+}
+
+// ---- gantt ----
+
+export type GanttStatus = 'done' | 'active' | 'crit'
+
+export interface GanttTask {
+  name: string
+  /** referenced by other tasks' `after` */
+  id?: string
+  /** ISO date (YYYY-MM-DD). When absent, resolved from `after` or the previous task's end */
+  start?: string
+  /** id of the task whose end this task starts at */
+  after?: string
+  durationDays?: number
+  /** ISO end date, used when `durationDays` is absent */
+  end?: string
+  status?: GanttStatus
+  /** renders a diamond at the start date instead of a bar */
+  milestone?: boolean
+  highlight?: Highlight
+}
+
+export interface GanttSection {
+  title?: string
+  tasks: GanttTask[]
+}
+
+export interface GanttConfig {
+  type?: 'gantt'
+  title?: string
+  sections: GanttSection[]
+  options?: DiagramOptions
+}
+
 export type DiagramConfig =
   | SequenceConfig
   | FlowchartConfig
@@ -331,3 +382,5 @@ export type DiagramConfig =
   | TimelineConfig
   | ClassConfig
   | ErConfig
+  | PieConfig
+  | GanttConfig

@@ -14,7 +14,7 @@ npm install animated-mermaid-diagrams
 
 ## Vision
 
-Animate every Mermaid diagram type. Currently shipping (`0.4.0`): sequence, flowchart, state, user journey, timeline, class, and ER diagrams. Subsequent releases add the remaining types.
+Animate every Mermaid diagram type. Currently shipping (`0.5.0`): sequence, flowchart, state, user journey, timeline, class, ER, pie, and Gantt diagrams. Subsequent releases add the remaining types.
 
 ### Roadmap
 
@@ -25,7 +25,7 @@ Milestones, in order (versions are indicative — features ship as they're ready
 | v1.0 | Sequence, Flowchart, State Diagram | shipped in 0.1.0–0.2.0 |
 | v1.1 | Journey, Timeline | shipped in 0.3.0 |
 | v1.2 | Class Diagram, ER Diagram | shipped in 0.4.0 |
-| v1.3 | Pie, Gantt | planned |
+| v1.3 | Pie, Gantt | shipped in 0.5.0 |
 | v2.0 | Mindmap, Sankey, Git Graph, Architecture | planned |
 
 ## Input: Mermaid syntax or JS config
@@ -566,6 +566,124 @@ erDiagram(container, {
 - dagre layout, entities scale in layer by layer with their attribute tables
 - Relationships draw with crow's-foot cardinality glyphs fading in at both ends
 
+### Pie Chart
+
+#### Mermaid input
+
+```js
+render(container, `
+  pie showData
+    title Key elements in Product X
+    "Calcium" : 42.96
+    "Potassium" : 50.05
+    "Magnesium" : 10.01
+`)
+```
+
+#### JS config input
+
+```js
+import { pie } from 'animated-mermaid-diagrams'
+
+pie(container, {
+  title: 'Key elements in Product X',
+  showData: true,
+  slices: [
+    { label: 'Calcium', value: 42.96 },
+    { label: 'Potassium', value: 50.05 },
+    { label: 'Magnesium', value: 10.01, highlight: true },
+  ],
+})
+```
+
+#### Slice schema
+
+| Field | Type | Required | Description |
+| ----- | ---- | -------- | ----------- |
+| `label` | `string` | yes | Legend label |
+| `value` | `number` | yes | Non-negative; non-finite/negative values count as 0 |
+| `highlight` | `boolean \| 'red' \| 'green'` | no | Accent outline on the slice |
+
+#### Config fields
+
+| Field | Type | Required | Description |
+| ----- | ---- | -------- | ----------- |
+| `title` | `string` | no | Chart title |
+| `showData` | `boolean` | no | Append each value to its legend row (Mermaid `pie showData`) |
+| `slices` | `PieSlice[]` | yes | Document order = clockwise from 12 o'clock |
+
+#### Animation behaviour
+
+- Slices fade in one per step, clockwise, each with its legend row
+- Percentage labels render inside slices that are large enough (≥ 8%)
+- Slice colors come from a fixed 8-color categorical palette (cycles beyond 8; not theme-customizable in this version)
+
+### Gantt Chart
+
+#### Mermaid input
+
+```js
+render(container, `
+  gantt
+    title Release plan
+    dateFormat YYYY-MM-DD
+    section Build
+      Design : done, d, 2024-01-01, 5d
+      Implement : active, i, after d, 10d
+    section Ship
+      Test : crit, after i, 4d
+      Launch : milestone, 2024-01-20, 0d
+`)
+```
+
+#### JS config input
+
+```js
+import { gantt } from 'animated-mermaid-diagrams'
+
+gantt(container, {
+  title: 'Release plan',
+  sections: [
+    { title: 'Build', tasks: [
+      { name: 'Design', id: 'd', start: '2024-01-01', durationDays: 5, status: 'done' },
+      { name: 'Implement', id: 'i', after: 'd', durationDays: 10, status: 'active' },
+    ]},
+    { title: 'Ship', tasks: [
+      { name: 'Test', after: 'i', durationDays: 4, status: 'crit' },
+      { name: 'Launch', start: '2024-01-20', milestone: true },
+    ]},
+  ],
+})
+```
+
+#### Task schema
+
+| Field | Type | Required | Description |
+| ----- | ---- | -------- | ----------- |
+| `name` | `string` | yes | Row label, left column |
+| `id` | `string` | no | Referenced by other tasks' `after` |
+| `start` | `string` | no | ISO date (`YYYY-MM-DD`). Missing → resolved from `after`, else the previous task's end |
+| `after` | `string` | no | Start at the end of the task with this id |
+| `durationDays` | `number` | no | Bar length in days; `end` (ISO date) is used when absent; defaults to 1 (0 for milestones) |
+| `end` | `string` | no | ISO end date alternative to `durationDays` |
+| `status` | `'done' \| 'active' \| 'crit'` | no | Bar color: muted / `highlight` token / `highlightRed` token |
+| `milestone` | `boolean` | no | Diamond at the start date instead of a bar |
+| `highlight` | `boolean \| 'red' \| 'green'` | no | Overrides the status color |
+
+Tasks whose start can't be resolved (unknown `after`, no prior task) are skipped rather than erroring.
+
+#### Config fields
+
+| Field | Type | Required | Description |
+| ----- | ---- | -------- | ----------- |
+| `title` | `string` | no | Chart title |
+| `sections` | `GanttSection[]` | yes | `{ title?, tasks }` row groups with tinted header bands |
+
+#### Animation behaviour
+
+- Title and the date axis (adaptive tick density: daily ≤ 14 days, weekly ≤ 90, else ~monthly) appear first
+- Bars draw left-to-right in document order, one per step; milestones pop as diamonds; section bands appear with their first task
+
 ---
 
 ## Shared Options
@@ -753,6 +871,19 @@ The parser aims for compatibility with Mermaid's syntax as documented at mermaid
 - Entity blocks: `NAME { type name PK "comment" }` — key lists (`PK, FK, UK`) and quoted comments
 - Entity aliases: `p[Person]`
 
+### Pie syntax
+
+- `pie` header with optional `showData`
+- `title Text`
+- `"Label" : value` entries (document order = clockwise draw order)
+
+### Gantt syntax
+
+- `title Text`, `section Name`
+- Task lines: `Name : [done|active|crit,] [milestone,] [id,] start, duration` where start is `YYYY-MM-DD` or `after otherId`, and duration is `Nd`, `Nw`, or an ISO end date
+- Tasks without a start continue from the previous task's end
+- `dateFormat` is parsed but only `YYYY-MM-DD` is supported; `axisFormat`, `excludes`, `todayMarker`, `tickInterval` are ignored
+
 ### Simplifications
 
 A few constructs render with intentionally simplified semantics rather than full fidelity to Mermaid's behavior:
@@ -767,6 +898,9 @@ A few constructs render with intentionally simplified semantics rather than full
 - `par`/`and` sections animate in document order, not concurrently
 - Class diagrams: `namespace` blocks, notes, and click/link callbacks are ignored; association/dependency arrows use the library's filled arrowhead rather than UML's open arrow
 - ER diagrams: attribute comments parse into the config but don't render; a bare entity name on its own line is ignored — declare entities via a block or a relationship
+- Pie charts: slice colors are a fixed categorical palette, not theme tokens
+- Gantt charts: no today-marker or weekend exclusion; `dateFormat` other than `YYYY-MM-DD` is unsupported; a JS config with sections of tasks and no `type` is inferred gantt only when the first task carries timing fields (`start`/`after`/`durationDays`/`end`/`milestone`) — set `type: 'gantt'` to be explicit
+- Gantt dates use JavaScript's calendar rollover: an invalid date like `2024-02-30` becomes `2024-03-01` rather than an error; tasks depending on a fractional-duration task (`2.5d`) start at the next whole day
 
 ### Recognized but not yet rendered (planned for v1.x)
 
@@ -876,7 +1010,7 @@ sequenceDiagram
 - One dependency: [`@dagrejs/dagre`](https://github.com/dagrejs/dagre) (the same layout engine Mermaid uses) — external in the ESM/CJS builds (resolved from `node_modules` like any other dependency), bundled into the browser-global build since it has no module resolution of its own
 - Tree-shakeable: `import { sequence }` only pulls in the sequence renderer (ESM build only — the CJS build's `require` interop defeats shaking, and dagre stays a separate resolved import in either case)
 - Browser global: `window.AnimatedMermaidDiagrams` via `dist/animated-mermaid-diagrams.umd.js` (an IIFE build for `<script>` tags; it does not register with AMD/CommonJS loaders)
-- Bundle size: ~37KB gzipped for the browser-global build (enforced by a CI size budget) (all diagram types, dagre included) — most of that is dagre itself; the ESM/CJS builds are far smaller since dagre stays an external import there
+- Bundle size: ~40KB gzipped for the browser-global build (enforced by a CI size budget) (all diagram types, dagre included) — most of that is dagre itself; the ESM/CJS builds are far smaller since dagre stays an external import there
 - Mermaid parser is a lightweight subset parser — does NOT depend on the mermaid package
 
 ## Accessibility
