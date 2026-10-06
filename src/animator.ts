@@ -202,6 +202,15 @@ export class Animator {
     }, this.remaining)
   }
 
+  /** Show one step instantly in its completed state — no callbacks, no
+   *  reveal animation. Used by themed rebuilds to restore click-mode state;
+   *  restoration must never re-fire onStepStart or replay transitions. */
+  revealInstant(i: number): void {
+    if (this.destroyed || i < 0 || i >= this.steps.length) return
+    for (const t of this.steps[i]) show(t)
+    this.nextIndex = Math.max(this.nextIndex, i + 1)
+  }
+
   /** Reveal one step immediately (used by click-to-advance modes). */
   revealStep(i: number): void {
     if (this.destroyed || i < 0 || i >= this.steps.length) return

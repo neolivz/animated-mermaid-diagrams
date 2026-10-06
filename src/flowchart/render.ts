@@ -1,10 +1,12 @@
 import type { AnimStep, AnimTarget } from '../animator'
-import { createDiagram, type ClickTarget } from '../controller'
+import type { ClickTarget } from '../controller'
+import { gatherOptions, mountDiagram } from '../mount'
 import { graphLayout, type PlacedNode } from '../graph-layout'
 import { highlightColor, resolveOptions } from '../theme'
 import { arrowHead, el, estimateTextWidth, svgRoot, textEl } from '../svg'
 import type {
   DiagramController,
+  DiagramOptions,
   FlowchartConfig,
   FlowNode,
   ResolvedOptions,
@@ -427,8 +429,18 @@ export function buildFlowchartSvg(
   return { svg, steps: finalSteps, clickTargets }
 }
 
-export function flowchart(container: HTMLElement, config: FlowchartConfig): DiagramController {
-  const opts = resolveOptions(config.options)
-  const { svg, steps, clickTargets } = buildFlowchartSvg(config, opts)
-  return createDiagram(container, svg, steps, opts, 0, opts.advance === 'click' ? clickTargets : undefined)
+export function flowchart(
+  container: HTMLElement,
+  config: FlowchartConfig,
+  options?: DiagramOptions,
+): DiagramController {
+  return mountDiagram(container, gatherOptions(config, options), (opts) => {
+    const { svg, steps, clickTargets } = buildFlowchartSvg(config, opts)
+    return {
+      svg,
+      steps,
+      stepIndexOffset: 0,
+      clickTargets: opts.advance === 'click' ? clickTargets : undefined,
+    }
+  })
 }

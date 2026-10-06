@@ -1,9 +1,10 @@
 import type { AnimStep } from '../animator'
-import { createDiagram } from '../controller'
+import { gatherOptions, mountDiagram } from '../mount'
 import { highlightColor, resolveOptions } from '../theme'
 import { el, estimateTextWidth, svgRoot, textEl } from '../svg'
 import type {
   DiagramController,
+  DiagramOptions,
   JourneyConfig,
   JourneySection,
   JourneyTask,
@@ -266,8 +267,13 @@ export function buildJourneySvg(
   return { svg, steps: animSteps }
 }
 
-export function journey(container: HTMLElement, config: JourneyConfig): DiagramController {
-  const opts = resolveOptions(config.options)
-  const { svg, steps } = buildJourneySvg(config, opts)
-  return createDiagram(container, svg, steps, opts, 1)
+export function journey(
+  container: HTMLElement,
+  config: JourneyConfig,
+  options?: DiagramOptions,
+): DiagramController {
+  return mountDiagram(container, gatherOptions(config, options), (opts) => {
+    const { svg, steps } = buildJourneySvg(config, opts)
+    return { svg, steps, stepIndexOffset: 1 }
+  })
 }

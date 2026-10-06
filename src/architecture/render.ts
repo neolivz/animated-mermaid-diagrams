@@ -1,5 +1,5 @@
 import type { AnimStep } from '../animator'
-import { createDiagram } from '../controller'
+import { gatherOptions, mountDiagram } from '../mount'
 import { highlightColor, resolveOptions } from '../theme'
 import { el, estimateTextWidth, svgRoot, textEl } from '../svg'
 import type {
@@ -8,6 +8,7 @@ import type {
   ArchSide,
   ArchitectureConfig,
   DiagramController,
+  DiagramOptions,
   ResolvedOptions,
   ThemeTokens,
 } from '../types'
@@ -410,8 +411,13 @@ export function buildArchitectureSvg(
   return { svg, steps: animSteps }
 }
 
-export function architecture(container: HTMLElement, config: ArchitectureConfig): DiagramController {
-  const opts = resolveOptions(config.options)
-  const { svg, steps } = buildArchitectureSvg(config, opts)
-  return createDiagram(container, svg, steps, opts, 1)
+export function architecture(
+  container: HTMLElement,
+  config: ArchitectureConfig,
+  options?: DiagramOptions,
+): DiagramController {
+  return mountDiagram(container, gatherOptions(config, options), (opts) => {
+    const { svg, steps } = buildArchitectureSvg(config, opts)
+    return { svg, steps, stepIndexOffset: 1 }
+  })
 }

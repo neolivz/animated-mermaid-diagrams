@@ -1,5 +1,5 @@
 import type { AnimStep } from '../animator'
-import { createDiagram } from '../controller'
+import { gatherOptions, mountDiagram } from '../mount'
 import { highlightColor, resolveOptions } from '../theme'
 import { arrowHead, crossMark, el, estimateTextWidth, svgRoot, textEl } from '../svg'
 import {
@@ -13,7 +13,8 @@ import {
   layoutSequence,
   noteBounds,
 } from './layout'
-import type { DiagramController, ResolvedOptions, SequenceConfig } from '../types'
+import type { DiagramController,
+  DiagramOptions, ResolvedOptions, SequenceConfig } from '../types'
 
 // Arrowhead polygon length (see arrowHead in svg.ts) — message lines stop this
 // far short of the arrival point so the line flows into the head, not under it.
@@ -263,8 +264,13 @@ export function buildSequenceSvg(
   return { svg, steps: animSteps }
 }
 
-export function sequence(container: HTMLElement, config: SequenceConfig): DiagramController {
-  const opts = resolveOptions(config.options)
-  const { svg, steps } = buildSequenceSvg(config, opts)
-  return createDiagram(container, svg, steps, opts, 1)
+export function sequence(
+  container: HTMLElement,
+  config: SequenceConfig,
+  options?: DiagramOptions,
+): DiagramController {
+  return mountDiagram(container, gatherOptions(config, options), (opts) => {
+    const { svg, steps } = buildSequenceSvg(config, opts)
+    return { svg, steps, stepIndexOffset: 1 }
+  })
 }

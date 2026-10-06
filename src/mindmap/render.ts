@@ -1,10 +1,11 @@
 import type { AnimStep } from '../animator'
-import { createDiagram } from '../controller'
 import { paletteColor } from '../palette'
+import { gatherOptions, mountDiagram } from '../mount'
 import { highlightColor, resolveOptions } from '../theme'
 import { el, estimateTextWidth, svgRoot, textEl } from '../svg'
 import type {
   DiagramController,
+  DiagramOptions,
   MindmapConfig,
   MindmapNode,
   ResolvedOptions,
@@ -259,8 +260,13 @@ export function buildMindmapSvg(
   return { svg, steps: animSteps }
 }
 
-export function mindmap(container: HTMLElement, config: MindmapConfig): DiagramController {
-  const opts = resolveOptions(config.options)
-  const { svg, steps } = buildMindmapSvg(config, opts)
-  return createDiagram(container, svg, steps, opts, 1)
+export function mindmap(
+  container: HTMLElement,
+  config: MindmapConfig,
+  options?: DiagramOptions,
+): DiagramController {
+  return mountDiagram(container, gatherOptions(config, options), (opts) => {
+    const { svg, steps } = buildMindmapSvg(config, opts)
+    return { svg, steps, stepIndexOffset: 1 }
+  })
 }

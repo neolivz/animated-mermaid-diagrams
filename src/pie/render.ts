@@ -1,8 +1,9 @@
 import type { AnimStep } from '../animator'
-import { createDiagram } from '../controller'
+import { gatherOptions, mountDiagram } from '../mount'
 import { highlightColor, resolveOptions } from '../theme'
 import { el, estimateTextWidth, svgRoot, textEl } from '../svg'
-import type { DiagramController, PieConfig, ResolvedOptions } from '../types'
+import type { DiagramController,
+  DiagramOptions, PieConfig, ResolvedOptions } from '../types'
 
 export { PALETTE } from '../palette'
 import { paletteColor } from '../palette'
@@ -143,8 +144,13 @@ export function buildPieSvg(
   return { svg, steps: animSteps }
 }
 
-export function pie(container: HTMLElement, config: PieConfig): DiagramController {
-  const opts = resolveOptions(config.options)
-  const { svg, steps } = buildPieSvg(config, opts)
-  return createDiagram(container, svg, steps, opts, 1)
+export function pie(
+  container: HTMLElement,
+  config: PieConfig,
+  options?: DiagramOptions,
+): DiagramController {
+  return mountDiagram(container, gatherOptions(config, options), (opts) => {
+    const { svg, steps } = buildPieSvg(config, opts)
+    return { svg, steps, stepIndexOffset: 1 }
+  })
 }

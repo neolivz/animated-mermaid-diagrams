@@ -1,7 +1,7 @@
 import type { AnimStep } from '../animator'
-import { createDiagram } from '../controller'
 import { endAngle, smoothPath, trimEnd, type Pt } from '../edge-path'
 import { graphLayout } from '../graph-layout'
+import { gatherOptions, mountDiagram } from '../mount'
 import { highlightColor, resolveOptions } from '../theme'
 import { arrowHead, el, estimateTextWidth, svgRoot, textEl } from '../svg'
 import type {
@@ -9,6 +9,7 @@ import type {
   ClassNode,
   ClassRelationType,
   DiagramController,
+  DiagramOptions,
   ResolvedOptions,
   ThemeTokens,
 } from '../types'
@@ -306,8 +307,13 @@ export function buildClassSvg(
   return { svg, steps: steps.filter((s) => s.length > 0) }
 }
 
-export function classDiagram(container: HTMLElement, config: ClassConfig): DiagramController {
-  const opts = resolveOptions(config.options)
-  const { svg, steps } = buildClassSvg(config, opts)
-  return createDiagram(container, svg, steps, opts, 0)
+export function classDiagram(
+  container: HTMLElement,
+  config: ClassConfig,
+  options?: DiagramOptions,
+): DiagramController {
+  return mountDiagram(container, gatherOptions(config, options), (opts) => {
+    const { svg, steps } = buildClassSvg(config, opts)
+    return { svg, steps, stepIndexOffset: 0 }
+  })
 }

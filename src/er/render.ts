@@ -1,11 +1,12 @@
 import type { AnimStep } from '../animator'
-import { createDiagram } from '../controller'
 import { endAngle, smoothPath, type Pt } from '../edge-path'
 import { graphLayout } from '../graph-layout'
+import { gatherOptions, mountDiagram } from '../mount'
 import { highlightColor, resolveOptions } from '../theme'
 import { el, estimateTextWidth, svgRoot, textEl } from '../svg'
 import type {
   DiagramController,
+  DiagramOptions,
   ErCardinality,
   ErConfig,
   ErEntity,
@@ -230,8 +231,13 @@ export function buildErSvg(
   return { svg, steps: steps.filter((s) => s.length > 0) }
 }
 
-export function erDiagram(container: HTMLElement, config: ErConfig): DiagramController {
-  const opts = resolveOptions(config.options)
-  const { svg, steps } = buildErSvg(config, opts)
-  return createDiagram(container, svg, steps, opts, 0)
+export function erDiagram(
+  container: HTMLElement,
+  config: ErConfig,
+  options?: DiagramOptions,
+): DiagramController {
+  return mountDiagram(container, gatherOptions(config, options), (opts) => {
+    const { svg, steps } = buildErSvg(config, opts)
+    return { svg, steps, stepIndexOffset: 0 }
+  })
 }

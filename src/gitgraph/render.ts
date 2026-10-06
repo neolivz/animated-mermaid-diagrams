@@ -1,9 +1,10 @@
 import type { AnimStep } from '../animator'
-import { createDiagram } from '../controller'
 import { paletteColor } from '../palette'
+import { gatherOptions, mountDiagram } from '../mount'
 import { highlightColor, resolveOptions } from '../theme'
 import { el, estimateTextWidth, svgRoot, textEl } from '../svg'
-import type { DiagramController, GitGraphConfig, GitOperation, ResolvedOptions } from '../types'
+import type { DiagramController,
+  DiagramOptions, GitGraphConfig, GitOperation, ResolvedOptions } from '../types'
 
 const LANE_H = 44
 const COL_W = 48
@@ -209,8 +210,13 @@ export function buildGitGraphSvg(
   return { svg, steps: animSteps }
 }
 
-export function gitGraph(container: HTMLElement, config: GitGraphConfig): DiagramController {
-  const opts = resolveOptions(config.options)
-  const { svg, steps } = buildGitGraphSvg(config, opts)
-  return createDiagram(container, svg, steps, opts, 1)
+export function gitGraph(
+  container: HTMLElement,
+  config: GitGraphConfig,
+  options?: DiagramOptions,
+): DiagramController {
+  return mountDiagram(container, gatherOptions(config, options), (opts) => {
+    const { svg, steps } = buildGitGraphSvg(config, opts)
+    return { svg, steps, stepIndexOffset: 1 }
+  })
 }

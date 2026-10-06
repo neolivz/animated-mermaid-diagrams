@@ -4,6 +4,28 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.1.0]
+
+Theming ergonomics, prompted by user feedback that themes "didn't work" — the usual cause being
+a theme passed somewhere the API silently ignored.
+
+### Added
+
+- `controller.setTheme(theme)`: re-renders the diagram in place with a new theme, preserving
+  playback position. Use it from a site-level dark-mode toggle. An explicit `setTheme` pins the
+  theme; `setTheme('auto')` resumes following the OS. (The `DiagramController` TypeScript
+  interface gains this method — only code hand-implementing that interface would notice.)
+- The thirteen direct renderers accept options as an optional third argument:
+  `sequence(el, config, { theme: 'light' })`.
+- Option keys written at the top level of a config (`{ type: 'pie', slices, theme: 'light' }`)
+  are now honored instead of silently ignored. Precedence: argument options > `config.options` >
+  top-level keys.
+
+### Changed
+
+- `theme: 'auto'` is now live: when the OS color scheme changes, diagrams re-render in place
+  with the matching built-in theme instead of keeping the scheme they were first rendered with.
+
 ## [1.0.0]
 
 The stability release. No new features — 1.0.0 is a promise: the public API (render/init, the

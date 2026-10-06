@@ -9,6 +9,24 @@ export interface ClickTarget {
   expands: number
 }
 
+/** Everything a themed rebuild needs to put the new controller back exactly
+ *  where the old one was. Captured by `snapshot()`, applied via the
+ *  `initialState` parameter of the next `createDiagram`. */
+export interface MountSnapshot {
+  /** raw shown-step count (includes intro steps) */
+  position: number
+  /** exact revealed raw indices — click mode only, where reveal order is non-linear */
+  revealed?: number[]
+  playing: boolean
+  userInteracted: boolean
+}
+
+// The inner, single-theme controller. Theme dynamics (`setTheme`, live
+// 'auto') are layered on top by mountDiagram, which rebuilds via this.
+export type InnerController = Omit<DiagramController, 'setTheme'> & {
+  snapshot(): MountSnapshot
+}
+
 export function createDiagram(
   container: HTMLElement,
   svg: SVGSVGElement,
@@ -16,7 +34,8 @@ export function createDiagram(
   opts: ResolvedOptions,
   stepIndexOffset = 0,
   clickTargets?: ClickTarget[],
-): DiagramController {
+  initialState?: MountSnapshot,
+): InnerController {
   container.appendChild(svg)
 
   const reducedMotion =
@@ -307,39 +326,83 @@ export function createDiagram(
     else anim.showAll()
   }
 
+  /** Reapplies a previous controller's state instantly: exact revealed set in
+   *  click mode (reveal order is non-linear), shown-count elsewhere. Never
+   *  re-fires onStepStart/onComplete — this is restoration, not playback. */
+  const applyInitialState = (s: MountSnapshot): void => {
+    if (clickMode) {
+      anim.reset()
+      revealed.clear()
+      for (const i of s.revealed ?? []) {
+        anim.revealInstant(i)
+        revealed.add(i)
+      }
+      userInteracted = s.userInteracted
+      syncTargets()
+    } else if (s.position > 0) {
+      anim.goToStep(s.position - 1)
+      // A diagram that was mid-playback keeps playing in its new theme.
+      if (s.playing) anim.resume()
+    }
+    syncAria()
+  }
+
   let observer: IntersectionObserver | null = null
+  const armObserver = (alreadyPlayed: boolean): void => {
+    let played = alreadyPlayed
+    // Browsers deliver an initial entry for every observed in-view element.
+    // After a themed rebuild (alreadyPlayed) that delivery must not count as
+    // a scroll re-entry, or the restored diagram would replay from step 0.
+    let suppressFirst = alreadyPlayed
+    observer = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (suppressFirst) {
+            suppressFirst = false
+            if (e.isIntersecting) continue
+          }
+          // Click mode + replayOnScroll: only an untouched diagram re-arms on
+          // re-entry — once the viewer has interacted, their progress must
+          // survive scrolling away and back. Auto mode is unaffected: clickMode
+          // is false there, so this collapses to the original `!played ||
+          // opts.replayOnScroll`.
+          const armable = !played || (opts.replayOnScroll && !(clickMode && userInteracted))
+          if (e.isIntersecting && armable) {
+            played = true
+            startOrPlay()
+          }
+        }
+      },
+      // The negative bottom rootMargin keeps a short diagram sitting just
+      // above the viewport's bottom edge from triggering while the viewer
+      // is still reading the content above it — it must climb 15% into
+      // view before playing. Tall diagrams are unaffected (threshold is
+      // relative to element size, rootMargin to the viewport).
+      { threshold: 0.2, rootMargin: '0px 0px -15% 0px' },
+    )
+    observer.observe(svg)
+  }
+
   if (!animate) {
     anim.showAll()
+  } else if (initialState) {
+    // A themed rebuild: restore state instead of starting. A diagram that had
+    // actually played is treated as already played (so only genuine scroll
+    // re-entries replay it); one that never played must stay armed for its
+    // FIRST play — otherwise replayOnScroll:false would silently never show it.
+    applyInitialState(initialState)
+    if (opts.trigger === 'onScroll' && typeof IntersectionObserver !== 'undefined') {
+      const hadPlayed =
+        initialState.position > 0 || (initialState.revealed?.length ?? 0) > 0
+      armObserver(hadPlayed)
+    }
   } else if (opts.trigger === 'immediate') {
     startOrPlay()
   } else if (opts.trigger === 'onScroll') {
     if (typeof IntersectionObserver === 'undefined') {
       startOrPlay()
     } else {
-      let played = false
-      observer = new IntersectionObserver(
-        (entries) => {
-          for (const e of entries) {
-            // Click mode + replayOnScroll: only an untouched diagram re-arms on
-            // re-entry — once the viewer has interacted, their progress must
-            // survive scrolling away and back. Auto mode is unaffected: clickMode
-            // is false there, so this collapses to the original `!played ||
-            // opts.replayOnScroll`.
-            const armable = !played || (opts.replayOnScroll && !(clickMode && userInteracted))
-            if (e.isIntersecting && armable) {
-              played = true
-              startOrPlay()
-            }
-          }
-        },
-        // The negative bottom rootMargin keeps a short diagram sitting just
-        // above the viewport's bottom edge from triggering while the viewer
-        // is still reading the content above it — it must climb 15% into
-        // view before playing. Tall diagrams are unaffected (threshold is
-        // relative to element size, rootMargin to the viewport).
-        { threshold: 0.2, rootMargin: '0px 0px -15% 0px' },
-      )
-      observer.observe(svg)
+      armObserver(false)
     }
   }
   // trigger === 'manual': stays hidden until play()
@@ -362,6 +425,12 @@ export function createDiagram(
       if (!clickMode) anim.resume()
     },
     goToStep: (n) => applyRawGoToStep(n + stepIndexOffset),
+    snapshot: () => ({
+      position: anim.position,
+      ...(clickMode ? { revealed: [...revealed] } : {}),
+      playing: anim.playing,
+      userInteracted,
+    }),
     destroy: () => {
       observer?.disconnect()
       for (const off of teardownListeners) off()

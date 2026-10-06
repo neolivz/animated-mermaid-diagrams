@@ -67,6 +67,10 @@ export interface DiagramController {
   pause(): void
   resume(): void
   goToStep(n: number): void
+  /** Re-renders the diagram with a new theme, preserving playback position.
+   *  Pins the theme until a later `setTheme('auto')`. Use this to follow a
+   *  site-level dark-mode toggle. */
+  setTheme(theme: DiagramOptions['theme']): void
   destroy(): void
 }
 

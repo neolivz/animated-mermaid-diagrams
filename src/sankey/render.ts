@@ -1,9 +1,10 @@
 import type { AnimStep } from '../animator'
-import { createDiagram } from '../controller'
 import { paletteColor } from '../palette'
+import { gatherOptions, mountDiagram } from '../mount'
 import { highlightColor, resolveOptions } from '../theme'
 import { el, estimateTextWidth, svgRoot, textEl } from '../svg'
-import type { DiagramController, ResolvedOptions, SankeyConfig, SankeyLink } from '../types'
+import type { DiagramController,
+  DiagramOptions, ResolvedOptions, SankeyConfig, SankeyLink } from '../types'
 
 const NODE_W = 16
 const NODE_GAP = 12
@@ -225,8 +226,13 @@ export function buildSankeySvg(
   return { svg, steps: animSteps }
 }
 
-export function sankey(container: HTMLElement, config: SankeyConfig): DiagramController {
-  const opts = resolveOptions(config.options)
-  const { svg, steps } = buildSankeySvg(config, opts)
-  return createDiagram(container, svg, steps, opts, 1)
+export function sankey(
+  container: HTMLElement,
+  config: SankeyConfig,
+  options?: DiagramOptions,
+): DiagramController {
+  return mountDiagram(container, gatherOptions(config, options), (opts) => {
+    const { svg, steps } = buildSankeySvg(config, opts)
+    return { svg, steps, stepIndexOffset: 1 }
+  })
 }

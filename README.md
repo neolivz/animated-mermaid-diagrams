@@ -789,7 +789,7 @@ interface DiagramOptions {
 
 | Option | Type | Default | Description |
 | ------ | ---- | ------- | ----------- |
-| `theme` | `'light' \| 'dark' \| 'auto' \| Partial<ThemeTokens>` | `'auto'` | `'auto'` reads `prefers-color-scheme`. Pass a full or partial `ThemeTokens` object for custom colors — see [Theme tokens](#theme-tokens) |
+| `theme` | `'light' \| 'dark' \| 'auto' \| Partial<ThemeTokens>` | `'auto'` | `'auto'` follows `prefers-color-scheme` live — the diagram re-renders in place when the OS scheme changes. Pass a full or partial `ThemeTokens` object for custom colors — see [Theme tokens](#theme-tokens) and [Dynamic theming](#dynamic-theming) |
 | `animate` | `boolean` | `true` | Set `false` to render final state immediately |
 | `trigger` | `'onScroll' \| 'immediate' \| 'manual'` | `'onScroll'` | When to start animation |
 | `advance` | `'auto' \| 'click'` | `'auto'` | Advance steps on click instead of a timer; on flowcharts, click a revealed node to expand its branches |
@@ -853,6 +853,12 @@ render(el, source, { theme: { highlight: '#f59e0b' } }) // only the highlight ac
 A **full** `ThemeTokens` object (every token specified) is used exactly as given, with no merging —
 the same behavior as before partial themes were supported.
 
+### Dynamic theming
+
+- **`theme: 'auto'` is live** (since 1.1.0): when the OS color scheme changes, the diagram re-renders in place with the matching built-in theme, preserving its playback position.
+- **Site-level dark-mode toggles**: if your site switches themes with a class or attribute (not the OS setting), call `controller.setTheme('dark' | 'light' | tokens)` from your toggle handler. An explicit `setTheme` pins the theme; `setTheme('auto')` resumes following the OS.
+- **Options placement is forgiving** (since 1.1.0): the direct renderers accept options as a third argument (`sequence(el, config, { theme: 'light' })`), and option keys written at the top level of a config (`{ type: 'pie', slices, theme: 'light' }`) are honored. Precedence when several are present: argument options > `config.options` > top-level keys.
+
 ### Trigger modes
 
 - `onScroll` — IntersectionObserver fires animation when container enters viewport. Replays when it re-enters (controlled by `replayOnScroll`). Falls back to immediate play where IntersectionObserver is unavailable.
@@ -877,6 +883,7 @@ interface DiagramController {
   pause(): void
   resume(): void
   goToStep(n: number): void
+  setTheme(theme: DiagramOptions['theme']): void
   destroy(): void
 }
 ```
@@ -888,6 +895,7 @@ interface DiagramController {
 | `pause()` | Pause mid-animation |
 | `resume()` | Resume from pause, or continue playback after `goToStep(n)` |
 | `goToStep(n)` | Jump to step n showing all prior steps completed |
+| `setTheme(theme)` | Re-render with a new theme in place, preserving playback position (see [Dynamic theming](#dynamic-theming)) |
 | `destroy()` | Remove SVG, disconnect observers, clean up |
 
 Step indices for `goToStep(n)` / `onStepStart(n)`: for sequence diagrams, `n` maps 1:1 to `steps[n]` in the config. For flowcharts, steps follow the layered reveal order (layer nodes, connecting edges, next layer, …). For state diagrams, steps follow the BFS reveal order from the initial state, which may differ from the order of the `transitions` array.
